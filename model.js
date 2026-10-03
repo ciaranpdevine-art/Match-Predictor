@@ -30,7 +30,20 @@ function predict(matches, home, away, asOf) {
   const pOver = 1 - dist[0] - dist[1] - dist[2];
   // both teams to score from independent Poissons
   const pBtts = (1 - Math.exp(-xh)) * (1 - Math.exp(-xa));
-  return { xh, xa, tot, pOver, pBtts, dist, homeGames: H.w, awayGames: A.w };
+  // full scoreline grid for result and combined markets
+  const ph = [], pa = [];
+  let fh = 1;
+  for (let i = 0; i <= 10; i++) { if (i) fh *= i; ph.push(Math.exp(-xh) * Math.pow(xh, i) / fh); pa.push(Math.exp(-xa) * Math.pow(xa, i) / fh); }
+  let pH = 0, pD = 0, pA = 0, pHB = 0, pAB = 0, pHO = 0, pAO = 0, pDB = 0, pDO = 0;
+  for (let i = 0; i <= 10; i++) for (let j = 0; j <= 10; j++) {
+    const p = ph[i] * pa[j], both = i > 0 && j > 0, over = i + j >= 3;
+    if (i > j) { pH += p; if (both) pHB += p; if (over) pHO += p; }
+    else if (i < j) { pA += p; if (both) pAB += p; if (over) pAO += p; }
+    else { pD += p; if (both) pDB += p; if (over) pDO += p; }
+  }
+  const tw = pH + pD + pA;
+  return { xh, xa, tot, pOver, pBtts, dist, homeGames: H.w, awayGames: A.w,
+    pH: pH / tw, pD: pD / tw, pA: pA / tw, pHB: pHB / tw, pAB: pAB / tw, pHO: pHO / tw, pAO: pAO / tw, pDB: pDB / tw, pDO: pDO / tw };
 }
 
 if (typeof module !== "undefined") module.exports = { predict };
