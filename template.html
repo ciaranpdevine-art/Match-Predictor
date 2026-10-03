@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Match Predictor</title>
+<meta name="description" content="Chance of over 2.5 goals and both teams scoring for English league football.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1d7a4b">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Predictor">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: single column matchday sheet; fixtures first, then predictor, team trends, data tools */
+:root{
+  --bg:#f2f5f1; --surface:#ffffff; --fg:#13201a; --muted:#5a6a61; --line:#d7dfd9;
+  --accent:#1d7a4b; --accent-soft:#dcefe3; --under:#6a7890; --under-soft:#e5e9f0; --warn:#a4661c;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1511; --surface:#15201a; --fg:#e4ece6; --muted:#94a49a; --line:#25332b;
+  --accent:#4fc98b; --accent-soft:#183a28; --under:#9eacc2; --under-soft:#222b38; --warn:#e0a35a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1511; --surface:#15201a; --fg:#e4ece6; --muted:#94a49a; --line:#25332b;
+  --accent:#4fc98b; --accent-soft:#183a28; --under:#9eacc2; --under-soft:#222b38; --warn:#e0a35a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2{font-family:var(--display);font-weight:700;letter-spacing:.01em;margin:0;text-wrap:balance;line-height:1.05}
+h1{font-size:2.6rem}
+h2{font-size:1.6rem}
+.eyebrow{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.status{color:var(--muted);font-size:.85rem;margin-top:6px}
+.seg{display:inline-flex;flex-wrap:nowrap;max-width:100%;gap:0;margin-top:14px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;border-radius:0;background:transparent;padding:9px 14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg .s{display:none}
+@media (max-width:620px){
+  .seg{display:grid;grid-template-columns:repeat(5,1fr);width:100%}
+  .seg button{padding:10px 4px;font-size:.85rem;white-space:nowrap;text-align:center}
+  .seg .f{display:none} .seg .s{display:inline}
+}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+section{display:flex;flex-direction:column;gap:12px}
+.picker{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
+label{display:flex;flex-direction:column;gap:4px;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;min-width:0}
+select{font:inherit;font-size:1rem;text-transform:none;letter-spacing:0;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%}
+button,.filebtn{font:inherit;font-weight:600;font-size:.9rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer}
+button:hover,.filebtn:hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.filebtn input{position:absolute;opacity:0;width:1px;height:1px}
+.filebtn{position:relative;display:inline-block}
+.result{display:grid;grid-template-columns:auto 1fr;gap:6px 20px;align-items:center;margin-top:18px}
+.big{font-family:var(--display);font-size:4.4rem;font-weight:700;line-height:.9}
+.big small{font-size:2rem}
+.verdict{display:inline-block;font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
+.v-over{background:var(--accent-soft);color:var(--accent)}
+.v-under{background:var(--under-soft);color:var(--under)}
+.v-toss{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.meter{position:relative;height:10px;border-radius:5px;background:var(--under-soft);margin:18px 0 6px;overflow:visible}
+.meter .fill{position:absolute;inset:0 auto 0 0;border-radius:5px;background:var(--accent)}
+.meter .tick{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--fg)}
+.meter-labels{position:relative;height:16px;font-size:.72rem;color:var(--muted)}
+.meter-labels span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+.stat{border-top:1px solid var(--line);padding-top:8px;min-width:0}
+.stat .k{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.stat .v{font-family:var(--mono);font-size:1.25rem}
+.dist{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:110px;margin-top:20px}
+.dist .col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;min-width:0}
+.dist .bar{width:100%;border-radius:4px 4px 0 0;background:var(--under)}
+.dist .bar.o{background:var(--accent)}
+.dist .p{font-family:var(--mono);font-size:.68rem;color:var(--muted)}
+.top-lg{display:flex;flex-direction:column;gap:10px}
+.top-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.top-cols h3{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 4px;font-weight:600}
+.pick{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}
+.pick:hover .m{text-decoration:underline}
+.pick .rk{font-family:var(--mono);font-size:.75rem;color:var(--muted);width:1.2em}
+.pick .m{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.pick .d{font-size:.75rem;color:var(--muted);font-weight:400}
+.pick .pp{font-family:var(--mono);font-size:1.05rem}
+.lgview[hidden],#topview[hidden]{display:none}
+@media (max-width:520px){.top-cols{grid-template-columns:1fr}}
+#trends th{white-space:normal;vertical-align:bottom}
+#trends th,#trends td{padding-left:6px;padding-right:6px}
+#trends td:first-child{white-space:normal}
+.bgrid{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;margin-top:20px;align-items:stretch}
+.bgrid .h{font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;align-items:flex-end;justify-content:center;text-align:center;padding:0 2px 2px;min-width:0;overflow-wrap:anywhere}
+.bgrid .rh{justify-content:flex-end;align-items:center;text-align:right;padding:0 6px 0 0;max-width:7.5em}
+.bcell{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.bcell .pv{font-family:var(--mono);font-size:1.25rem;line-height:1}
+.bcell .lb{font-size:.72rem;color:var(--muted)}
+.bcell .track{height:6px;border-radius:3px;background:var(--under-soft);overflow:hidden}
+.bcell .track i{display:block;height:100%;border-radius:3px;background:var(--under)}
+.bcell.yes{background:var(--accent-soft);border-color:var(--accent)}
+.bcell.yes .track{background:var(--surface)}
+.bcell.yes .track i{background:var(--accent)}
+.dist-x{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center;font-size:.75rem;color:var(--muted);border-top:1px solid var(--line);padding-top:4px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+.form h3{margin:0 0 6px;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.fl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:.85rem}
+.fl li{display:grid;grid-template-columns:2.1em 1fr auto auto;gap:8px;align-items:center;min-width:0}
+.fl .opp{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{font-family:var(--mono);font-size:.68rem;padding:1px 6px;border-radius:4px}
+.chip.o{background:var(--accent-soft);color:var(--accent)}
+.chip.u{background:var(--under-soft);color:var(--under)}
+.venue{font-size:.68rem;color:var(--muted);font-family:var(--mono)}
+.note{font-size:.8rem;color:var(--muted)}
+.warn{color:var(--warn)}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{text-align:left;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.r,th.r{text-align:right}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--bg)}
+.minibar{display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--under-soft);vertical-align:middle;margin-left:8px;position:relative;overflow:hidden}
+.minibar i{position:absolute;inset:0 auto 0 0;background:var(--accent)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.msg{font-size:.85rem}
+ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;max-width:65ch}
+@media (max-width:520px){
+  h1{font-size:2.1rem}
+  .picker{grid-template-columns:1fr 1fr}
+  .picker .swap{grid-column:1 / -1;order:3}
+  .big{font-size:3.6rem}
+  .stats{grid-template-columns:1fr 1fr}
+  .form{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:no-preference){.meter .fill,.dist .bar{transition:width .35s ease,height .35s ease}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><span id="lgname">Premier League</span> · 2026/27</div>
+    <h1>Match Predictor</h1>
+    <div class="seg" role="group" aria-label="League">
+      <button type="button" data-lg="TOP" id="lg-TOP" aria-label="Top picks"><span class="f">★ Top picks</span><span class="s">★ Top</span></button>
+      <button type="button" data-lg="E0" id="lg-E0" aria-label="Premier League"><span class="f">Premier League</span><span class="s">Prem</span></button>
+      <button type="button" data-lg="E1" id="lg-E1" aria-label="Championship"><span class="f">Championship</span><span class="s">Champ</span></button>
+      <button type="button" data-lg="E2" id="lg-E2" aria-label="League One"><span class="f">League One</span><span class="s">Lg 1</span></button>
+      <button type="button" data-lg="E3" id="lg-E3" aria-label="League Two"><span class="f">League Two</span><span class="s">Lg 2</span></button>
+    </div>
+    <div class="status" id="status"></div>
+  </header>
+
+  <section id="topview" aria-labelledby="top-h" hidden>
+    <h2 id="top-h">Top picks</h2>
+    <p class="note" style="margin:0" id="top-note"></p>
+    <div id="top"></div>
+  </section>
+
+  <section class="lgview" aria-labelledby="fx-h">
+    <h2 id="fx-h">Upcoming fixtures</h2>
+    <div id="fixtures"></div>
+  </section>
+
+  <section class="panel lgview" aria-labelledby="pick-h">
+    <h2 id="pick-h">Match Prediction</h2>
+    <div class="picker">
+      <label for="home">Home<select id="home"></select></label>
+      <button class="swap" id="swap" type="button" aria-label="Swap home and away">⇄ Swap</button>
+      <label for="away">Away<select id="away"></select></label>
+    </div>
+    <div id="out"></div>
+  </section>
+
+  <section class="lgview" aria-labelledby="tr-h">
+    <h2 id="tr-h">Team goal trends</h2>
+    <p class="note" style="margin:0">How many of each team's last 10 league games (home and away) went over 2.5 or had both teams score. Teams with fewer than 10 show it as, say, 4/6. Tap a team to load it as the home side.</p>
+    <div class="panel tablewrap" style="padding:6px 10px"><table id="trends"></table></div>
+  </section>
+
+  <section aria-labelledby="up-h">
+    <h2 id="up-h">Update data</h2>
+    <p class="note" style="margin:0">Results, fixtures and bookmaker odds update automatically every morning from football-data.co.uk and fixturedownload.com. You don't need to do anything.</p>
+    <p class="note" style="margin:0">For a quicker refresh on this device only, you can still load a file here: E0.csv to E3.csv from football-data.co.uk for results, or fixtures.csv for this week's odds. Duplicates are skipped.</p>
+    <div class="tools">
+      <label class="filebtn" for="resfile">Load results (E0–E3.csv)<input type="file" id="resfile" accept=".csv,text/csv"></label>
+      <label class="filebtn" for="fixfile">Load fixtures (either source)<input type="file" id="fixfile" accept=".csv,text/csv"></label>
+      <button type="button" id="reset">Clear loaded files</button>
+    </div>
+    <div class="msg" id="msg" role="status"></div>
+  </section>
+
+  <section aria-labelledby="how-h">
+    <h2 id="how-h">How the numbers are made</h2>
+    <ol class="how note">
+      <li>Every team gets attack and defence ratings for home and away games, measured against the league average.</li>
+      <li>Ratings blend goals scored with shots on target, converted to goals at the league's average rate.</li>
+      <li>A game from about 16 months ago counts half as much as one played this week.</li>
+      <li>Teams with few games, such as newly promoted sides, are pulled toward the league average.</li>
+      <li>Expected goals for both sides give a total, and a Poisson distribution turns that into the chance of 3 or more goals.</li>
+    </ol>
+    <p class="note" style="margin:0" id="test"></p>
+  </section>
+</div>
+
+<script>
+const BASE_ODDS = __ODDS__; // [div, local kick-off, home, away, over 2.5 odds, under 2.5 odds] from football-data fixtures.csv
+const BASE_FIX = { E0: __FIXTURES_E0__, E1: __FIXTURES_E1__, E2: __FIXTURES_E2__, E3: __FIXTURES_E3__ }; // [round, local kick-off, home, away]; PL from fixturedownload.com, Championship from openfootball
+let selRound = {};
+const BLEND_W = {E0:0.75,E1:0.1,E2:0,E3:0}; // model weight in logit blend, fitted on 2024/25
+const LEAGUES = { E0:{ name:"Premier League", file:"E0.csv", data:__RESULTS_E0__, test:"Tested on 430 Premier League matches from August 2025 using only earlier data, the model was slightly more accurate than the average bookmaker Over/Under 2.5 price, and a 75/25 blend of model and bookmakers was best of all. Where fixtures carry odds, the best estimate uses that blend." }, E1:{ name:"Championship", file:"E1.csv", data:__RESULTS_E1__, test:"Tested on 647 Championship matches from August 2025 using only earlier data, the bookmakers were more accurate than the model. Where fixtures carry odds, the best estimate leans 90% on the bookmaker price." }, E2:{ name:"League One", file:"E2.csv", data:__RESULTS_E2__, test:"Tested on 639 League One matches from August 2025 using only earlier data, the model added nothing over the bookmaker price. Where fixtures carry odds, the best estimate is the bookmaker price; without odds, the model is only a rough guide." }, E3:{ name:"League Two", file:"E3.csv", data:__RESULTS_E3__, test:"Tested on 646 League Two matches from August 2025 using only earlier data, the model added nothing over the bookmaker price. Where fixtures carry odds, the best estimate is the bookmaker price; without odds, the model is only a rough guide." } };
+let LG = LS0("league") || "E0";
+function LS0(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+__MODEL__
+const $ = id => document.getElementById(id);
+const LS = { get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }, del(k){ try{ localStorage.removeItem(k); }catch(e){} } };
+
+let matches = [], fixtures = [];
+const toM = r => ({ d:r[0], t:Date.parse(r[0]), h:r[1], a:r[2], hg:+r[3], ag:+r[4], hst:+r[5], ast:+r[6] });
+
+function buildFor(lg){
+  const extra = LS.get("extraRows_"+lg) || [];
+  const seen = new Set(), ms = [];
+  for (const r of LEAGUES[lg].data.concat(extra)) {
+    const key = r[0]+"|"+r[1]+"|"+r[2];
+    if (seen.has(key)) continue; seen.add(key); ms.push(toM(r));
+  }
+  ms.sort((x,y)=>x.t-y.t);
+  const fx = {};
+  for (const [r, d, h, a] of (BASE_FIX[lg] || [])) fx[d.slice(0,10)+"|"+h+"|"+a] = { d, r, h, a, div: lg };
+  for (const [dv, d, h, a, o, u] of BASE_ODDS) if (dv===lg) { const k = d.slice(0,10)+"|"+h+"|"+a; fx[k] = { ...(fx[k]||{ d, h, a, div: lg }), o, u }; }
+  for (const [k, f] of Object.entries(LS.get("fixtures2") || {})) if (f.div===lg) fx[k] = { ...(fx[k]||{}), ...f, d: (fx[k]&&fx[k].d) || f.d, r: f.r || (fx[k]&&fx[k].r) };
+  const fs = Object.values(fx).filter(f => Date.parse(f.d.length > 10 ? f.d : f.d + "T23:59") > Date.now() - 2.5*3600000).sort((x,y)=>x.d.localeCompare(y.d)||x.h.localeCompare(y.h));
+  return { matches: ms, fixtures: fs };
+}
+function build(){ ({ matches, fixtures } = buildFor(LG)); }
+
+const TOP_N = 3, TOP_DAYS = 7;
+function renderTop(){
+  const el = $("top"); let html = "";
+  for (const lg in LEAGUES) {
+    const { matches: ms, fixtures: fs } = buildFor(lg);
+    if (!fs.length || !ms.length) { html += `<div class="panel top-lg"><h2 style="margin:0">${LEAGUES[lg].name}</h2><p class="note" style="margin:0">No upcoming fixtures loaded.</p></div>`; continue; }
+    const start = Date.parse(fs[0].d), end = start + TOP_DAYS*86400000;
+    const asOf = new Date(ms[ms.length-1].t + 86400000);
+    const rows = fs.filter(f=>Date.parse(f.d) < end).map(f=>({ f, p: predict(ms, f.h, f.a, asOf) })).filter(r=>r.p);
+    const lastD = rows.length ? Date.parse(rows[rows.length-1].f.d) : start;
+    const list = (key) => rows.slice().sort((x,y)=>y.p[key]-x.p[key]).slice(0, TOP_N).map((r,i)=>{
+      const t = Date.parse(r.f.d);
+      return `<div class="pick" role="button" tabindex="0" data-lg="${lg}" data-h="${r.f.h}" data-a="${r.f.a}">
+        <span class="rk">${i+1}</span>
+        <span class="m">${r.f.h} v ${r.f.a}<br><span class="d">${fmtShort(t)}${r.f.d.length>10?" · "+r.f.d.slice(11,16):""}</span></span>
+        <span class="pp">${pct(r.p[key])}%</span></div>`; }).join("");
+    html += `<div class="panel top-lg">
+      <div><h2 style="margin:0">${LEAGUES[lg].name}</h2><span class="note">${rows.length} matches, ${fmtShort(start)}${lastD-start>86400000?" – "+fmtShort(lastD):""}</span></div>
+      <div class="top-cols"><div><h3>Over 2.5</h3>${list("pOver")}</div><div><h3>BTTS</h3>${list("pBtts")}</div></div>
+    </div>`;
+  }
+  el.innerHTML = html;
+  $("top-note").textContent = `The ${TOP_N} highest model chances in each league, from each league's next ${TOP_DAYS} days of fixtures. Tap a match to open its full prediction.`;
+  el.querySelectorAll(".pick").forEach(row=>{
+    const go = ()=>{ setLeague(row.dataset.lg); ensureOption(row.dataset.h); ensureOption(row.dataset.a); $("home").value=row.dataset.h; $("away").value=row.dataset.a; render(); $("pick-h").scrollIntoView({behavior:"smooth"}); };
+    row.addEventListener("click", go);
+    row.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } });
+  });
+}
+
+const fmtDate = t => new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+const fmtShort = t => new Date(t).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+const pct = p => Math.round(p*100);
+
+function currentTeams(){
+  const last = matches[matches.length-1].t, start = last - 120*86400000;
+  const s = new Set();
+  matches.filter(m=>m.t>=start).forEach(m=>{s.add(m.h);s.add(m.a);});
+  fixtures.forEach(f=>{s.add(f.h);s.add(f.a);});
+  return [...s].sort();
+}
+
+function baseline(btts){
+  const last = matches[matches.length-1].t;
+  const rec = matches.filter(m=>m.t > last - 365*86400000);
+  return rec.filter(m=>btts ? (m.hg>0 && m.ag>0) : m.hg+m.ag>=3).length / rec.length;
+}
+
+function bttsVerdict(p){
+  if (p >= 0.58) return ["Lean yes","v-over"];
+  if (p <= 0.48) return ["Lean no","v-under"];
+  return ["Toss-up","v-toss"];
+}
+function verdict(p){
+  if (p >= 0.58) return ["Lean over","v-over"];
+  if (p <= 0.48) return ["Lean under","v-under"];
+  return ["Toss-up","v-toss"];
+}
+
+function lastGames(team, n){
+  return matches.filter(m=>m.h===team||m.a===team).slice(-n).reverse();
+}
+
+function formList(team){
+  return lastGames(team,6).map(m=>{
+    const home = m.h===team, opp = home?m.a:m.h, tot=m.hg+m.ag;
+    return `<li><span class="venue">${home?"H":"A"}</span><span class="opp">${opp}</span><span class="num">${m.hg}-${m.ag}</span><span class="chip ${tot>=3?"o":"u"}">${tot>=3?"O":"U"}</span></li>`;
+  }).join("");
+}
+
+function render(){
+  const home = $("home").value, away = $("away").value;
+  const out = $("out");
+  if (home === away){ out.innerHTML = `<p class="note">Pick two different teams.</p>`; return; }
+  const asOf = new Date(matches[matches.length-1].t + 86400000);
+  const p = predict(matches, home, away, asOf);
+  const base = baseline();
+  const [vt, vc] = verdict(p.pOver);
+  const baseB = baseline(true), [bt, bc] = bttsVerdict(p.pBtts);
+  const thin = p.homeGames < 4 || p.awayGames < 4;
+  const maxD = Math.max(...p.dist.slice(0,7));
+  const cols = [0,1,2,3,4,5,6].map(i=>{
+    const v = i<6 ? p.dist[i] : 1 - p.dist.slice(0,6).reduce((a,b)=>a+b,0);
+    return {i, v, lab: i<6? String(i) : "6+"};
+  });
+  const maxC = Math.max(...cols.map(c=>c.v));
+  out.innerHTML = `
+    <div class="result">
+      <div class="big num" aria-label="${pct(p.pOver)} percent chance of 3 or more goals">${pct(p.pOver)}<small>%</small></div>
+      <div><div style="font-weight:600">chance of 3+ goals</div><span class="verdict ${vc}">${vt}</span></div>
+    </div>
+    <div class="meter" role="img" aria-label="Probability bar with league average marker">
+      <div class="fill" style="width:${pct(p.pOver)}%"></div>
+      <div class="tick" style="left:${(base*100).toFixed(1)}%"></div>
+    </div>
+    <div class="meter-labels"><span style="left:${(base*100).toFixed(1)}%">League avg ${pct(base)}%</span></div>
+    <div class="result" style="margin-top:22px">
+      <div class="big num" aria-label="${pct(p.pBtts)} percent chance both teams score">${pct(p.pBtts)}<small>%</small></div>
+      <div><div style="font-weight:600">chance of BTTS</div><span class="verdict ${bc}">${bt}</span></div>
+    </div>
+    <div class="meter" role="img" aria-label="Both teams to score probability bar with league average marker">
+      <div class="fill" style="width:${pct(p.pBtts)}%"></div>
+      <div class="tick" style="left:${(baseB*100).toFixed(1)}%"></div>
+    </div>
+    <div class="meter-labels"><span style="left:${(baseB*100).toFixed(1)}%">League avg ${pct(baseB)}%</span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">${home} xG</div><div class="v">${p.xh.toFixed(2)}</div></div>
+      <div class="stat"><div class="k">${away} xG</div><div class="v">${p.xa.toFixed(2)}</div></div>
+      <div class="stat"><div class="k">Expected total</div><div class="v">${p.tot.toFixed(2)}</div></div>
+      <div class="stat"><div class="k">Most likely total</div><div class="v">${cols.reduce((a,b)=>b.v>a.v?b:a).lab} goals</div></div>
+      <div class="stat"><div class="k">Under 2.5</div><div class="v">${100-pct(p.pOver)}%</div></div>
+      <div class="stat"><div class="k">BTTS – no</div><div class="v">${100-pct(p.pBtts)}%</div></div>
+    </div>
+    <div class="dist" aria-label="Chance of each total number of goals">
+      ${cols.map(c=>`<div class="col"><span class="p">${pct(c.v)}%</span><div class="bar ${c.i>=3?"o":""}" style="height:${(c.v/maxC*80).toFixed(1)}%"></div></div>`).join("")}
+    </div>
+    <div class="dist-x">${cols.map(c=>`<span>${c.lab}</span>`).join("")}</div>
+    <p class="note" style="margin:6px 0 0">Total goals in the match. Green bars are 3 or more.</p>
+    ${(()=>{ const ph=1-Math.exp(-p.xh), pa=1-Math.exp(-p.xa);
+      const cell=(v,lab,yes)=>`<div class="bcell${yes?" yes":""}" title="${lab}: ${pct(v)}%"><div class="pv">${pct(v)}%</div><div class="lb">${lab}</div><div class="track"><i style="width:${pct(v)}%"></i></div></div>`;
+      return `<div class="bgrid" role="table" aria-label="Who scores: chance of each combination">
+        <div></div><div class="h">${away} score</div><div class="h">${away} don't</div>
+        <div class="h rh">${home} score</div>${cell(ph*pa,"Both score",true)}${cell(ph*(1-pa),home+" only")}
+        <div class="h rh">${home} don't</div>${cell((1-ph)*pa,away+" only")}${cell((1-ph)*(1-pa),"Neither (0-0)")}
+      </div>
+      <p class="note" style="margin:6px 0 0">Who scores. Green is both teams scoring; the bar in each box shows its share.</p>`; })()}
+    ${(()=>{ const f = findFixture(home, away); const q = f ? marketP(f) : null; if (q==null) return ""; const b = bestEst(p.pOver, q);
+      return `<p class="note" style="margin:10px 0 0">Bookmakers: <span class="num">${pct(q)}%</span> · Best estimate: <strong class="num">${pct(b)}%</strong>${(BLEND_W[LG]??0)===0?" (in this league, the bookmaker price has been the better guide)":""}</p>`; })()}
+    ${thin ? `<p class="note warn">Few past games for ${p.homeGames<4?home+" at home":away+" away"}, so this leans heavily on league averages.</p>` : ""}
+    <div class="form">
+      <div><h3>${home} last 6</h3><ul class="fl">${formList(home)}</ul></div>
+      <div><h3>${away} last 6</h3><ul class="fl">${formList(away)}</ul></div>
+    </div>`;
+}
+
+function marketP(f){ return (f.o && f.u) ? (1/f.o)/(1/f.o+1/f.u) : null; }
+function bestEst(p, q){
+  if (q==null) return null;
+  const w = BLEND_W[LG] ?? 0, lo = x=>Math.log(x/(1-x));
+  return 1/(1+Math.exp(-(w*lo(p)+(1-w)*lo(q))));
+}
+function findFixture(h,a){ return fixtures.find(f=>f.h===h&&f.a===a); }
+
+function renderFixtures(){
+  const el = $("fixtures");
+  if (!fixtures.length){
+    el.innerHTML = `<div class="empty"><strong>No ${LEAGUES[LG].name} fixtures loaded</strong><span class="note">Download the 2026/27 fixture list for this league from fixturedownload.com, or this week's fixtures.csv from football-data.co.uk, and load it under Update data. Each match will appear here with its chance of 3+ goals.</span></div>`;
+    return;
+  }
+  const asOf = new Date(matches[matches.length-1].t + 86400000);
+  const rounds = [...new Set(fixtures.map(f=>f.r).filter(Boolean))].sort((a,b)=>a-b);
+  const now = Date.now(), soon = fixtures.filter(f=>Date.parse(f.d) <= now + 9*86400000);
+  let list, label;
+  if (rounds.length){
+    if (!rounds.includes(selRound[LG])) selRound[LG] = fixtures[0].r;
+    list = fixtures.filter(f=>f.r===selRound[LG]); label = `Round ${selRound[LG]}`;
+  } else { list = soon.length ? soon : fixtures.slice(0, 12); label = soon.length ? "Next 9 days" : "Next round"; }
+  const rows = list.map(f=>{ const p = predict(matches, f.h, f.a, asOf); if(!p) return null; const q = marketP(f); return {f, p, q, b: bestEst(p.pOver,q)}; }).filter(Boolean);
+  const anyOdds = rows.some(r=>r.q!=null);
+  const more = fixtures.length - list.length;
+  const picker = rounds.length ? `<div class="tools"><label for="round" style="flex-direction:row;align-items:center;gap:10px">Round<select id="round" style="width:auto">${rounds.map(r=>`<option value="${r}"${r===selRound[LG]?" selected":""}>${r} · ${fmtShort(Date.parse(fixtures.find(f=>f.r===r).d.slice(0,10)))}</option>`).join("")}</select></label></div>` : "";
+  el.innerHTML = picker + `<div class="panel tablewrap" style="padding:6px 10px"><table>
+    <thead>${anyOdds?`<tr><th></th><th class="r" colspan="2" style="text-align:center">Model</th><th class="r" colspan="2" style="text-align:center">Over 2.5</th></tr>`:""}<tr><th>Match</th><th class="r">Over 2.5</th><th class="r">BTTS</th>${anyOdds?`<th class="r">Bookies</th><th class="r">Best est.</th>`:""}</tr></thead>
+    <tbody>${rows.map(({f,p,q,b})=>{const shown = b ?? p.pOver; const [vt,vc]=verdict(shown); const [bt,bc]=verdict(p.pBtts);
+      return `<tr class="click" data-h="${f.h}" data-a="${f.a}" tabindex="0"><td style="white-space:normal;min-width:9em"><div>${f.h} v ${f.a}</div><div class="note">${fmtShort(Date.parse(f.d.slice(0,10)))}${f.d.length>10?" · "+f.d.slice(11,16):""}</div></td>
+      <td class="r num">${anyOdds?pct(p.pOver)+"%":`<span class="verdict ${vc}">${pct(p.pOver)}%</span>`}</td>
+      <td class="r num"><span class="verdict ${bc}">${pct(p.pBtts)}%</span></td>
+      ${anyOdds?`<td class="r num">${q!=null?pct(q)+"%":"–"}</td><td class="r">${b!=null?`<span class="verdict ${vc}">${pct(b)}%</span>`:`<span class="note">no odds</span>`}</td>`:""}</tr>`}).join("")}</tbody></table></div>
+    <p class="note" style="margin:0">${label}: ${rows.length} match${rows.length===1?"":"es"}${more>0?`, ${more} more later in the season`:""}. Over 2.5 is the chance of 3+ goals; BTTS is the chance both teams score. Using results up to ${fmtDate(matches[matches.length-1].t)}.${anyOdds?" Best estimate blends model and bookmaker price, weighted by how well each predicted this league last season.":""}</p>`;
+  if ($("round")) $("round").addEventListener("change", e=>{ selRound[LG] = +e.target.value; renderFixtures(); });
+  el.querySelectorAll("tr.click").forEach(tr=>{
+    const go=()=>{ ensureOption(tr.dataset.h); ensureOption(tr.dataset.a); $("home").value=tr.dataset.h; $("away").value=tr.dataset.a; render(); $("pick-h").scrollIntoView({behavior:"smooth"}); };
+    tr.addEventListener("click",go); tr.addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+  });
+}
+
+function renderTrends(){
+  const teams = currentTeams();
+  const rows = teams.map(t=>{
+    const g = lastGames(t,10); if(!g.length) return null;
+    const over = g.filter(m=>m.hg+m.ag>=3).length, btts = g.filter(m=>m.hg>0&&m.ag>0).length;
+    const avg = g.reduce((a,m)=>a+m.hg+m.ag,0)/g.length;
+    return {t, n:g.length, over, btts, avg};
+  }).filter(Boolean).sort((a,b)=>b.over/b.n-a.over/a.n || b.avg-a.avg);
+  $("trends").innerHTML = `<thead><tr><th>Team</th><th class="r">Over 2.5</th><th class="r">BTTS</th><th class="r">Avg goals</th></tr></thead>
+  <tbody>${rows.map(r=>`<tr class="click" data-t="${r.t}" tabindex="0"><td>${r.t}</td><td class="r num">${r.over}${r.n<10?"/"+r.n:""}</td><td class="r num">${r.btts}${r.n<10?"/"+r.n:""}</td><td class="r num">${r.avg.toFixed(1)}</td></tr>`).join("")}</tbody>`;
+  $("trends").querySelectorAll("tr.click").forEach(tr=>{
+    const go=()=>{ $("home").value=tr.dataset.t; if($("away").value===tr.dataset.t){ $("away").selectedIndex=($("away").selectedIndex+1)%$("away").options.length; } render(); $("pick-h").scrollIntoView({behavior:"smooth"}); };
+    tr.addEventListener("click",go); tr.addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+  });
+}
+
+function ensureOption(t){
+  for (const id of ["home","away"]) if (![...$(id).options].some(o=>o.value===t)) $(id).add(new Option(t,t));
+}
+
+function fillPickers(keepH, keepA){
+  const teams = currentTeams();
+  for (const id of ["home","away"]) $(id).innerHTML = teams.map(t=>`<option>${t}</option>`).join("");
+  const DEF = {E0:["Man City","Brighton"],E1:["Southampton","West Ham"],E2:["Huddersfield","Leicester"],E3:["Rotherham","Bristol Rvs"]}; const [dh, da] = fixtures.length ? [fixtures[0].h, fixtures[0].a] : (DEF[LG] || []);
+  $("home").value = teams.includes(keepH)?keepH:(teams.includes(dh)?dh:teams[0]);
+  $("away").value = teams.includes(keepA)&&keepA!==$("home").value?keepA:(teams.includes(da)&&da!==$("home").value?da:teams.find(x=>x!==$("home").value));
+}
+
+function status(){
+  const last = matches[matches.length-1].t;
+  const age = Math.floor((Date.now()-last)/86400000);
+  let warn = "";
+  if (BASE_FIX[LG]) {
+    const missed = BASE_FIX[LG].filter(([r,d])=>{ const x = Date.parse(d.slice(0,10)); return x > last && x < Date.now() - 86400000; }).length;
+    if (missed) warn = `${missed} game${missed===1?"":"s"} played since, load the latest ${LEAGUES[LG].file}`;
+  } else if (age > 8) warn = `${age} days old, load the latest ${LEAGUES[LG].file}`;
+  $("status").innerHTML = `Results up to <span class="num">${fmtDate(last)}</span> · <span class="num">${matches.length.toLocaleString("en-GB")}</span> ${LEAGUES[LG].name} matches since mid-2022${warn?` · <span class="warn">${warn}</span>`:" · up to date"}`;
+}
+
+// CSV parsing for football-data.co.uk files
+function parseCSV(text){
+  const lines = text.replace(/^﻿/,"").split(/\r?\n/).filter(l=>l.trim());
+  const head = lines[0].split(",").map(s=>s.trim());
+  return lines.slice(1).map(l=>{ const c=l.split(","); const o={}; head.forEach((h,i)=>o[h]=(c[i]||"").trim()); return o; });
+}
+function isoDate(s){
+  s = (s||"").trim(); const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s.*)?$/); if(!m) return null;
+  let y = +m[3]; if (y<100) y += 2000;
+  return `${y}-${String(m[2]).padStart(2,"0")}-${String(m[1]).padStart(2,"0")}`;
+}
+
+async function loadResults(file){
+  const rows = parseCSV(await file.text());
+  if (!rows.length || !("FTHG" in rows[0]) || !("HST" in rows[0])) { $("msg").innerHTML = `<span class="warn">That file has no results columns. Use a season file such as E0.csv or E3.csv, not fixtures.csv.</span>`; return; }
+  const div = rows[0].Div || LG;
+  if (!LEAGUES[div]) { $("msg").innerHTML = `<span class="warn">That file is division ${div}. This app covers the Premier League (E0.csv), Championship (E1.csv), League One (E2.csv) and League Two (E3.csv).</span>`; return; }
+  if (div !== LG) setLeague(div, true);
+  const before = matches.length;
+  const extra = LS.get("extraRows_"+div) || [];
+  for (const r of rows){
+    const d = isoDate(r.Date); if(!d || r.FTHG==="" || r.HST==="") continue;
+    extra.push([d, r.HomeTeam, r.AwayTeam, +r.FTHG, +r.FTAG, +r.HST, +r.AST]);
+  }
+  LS.set("extraRows_"+div, extra); refresh();
+  const added = matches.length - before;
+  $("msg").textContent = added ? `Added ${added} new ${LEAGUES[div].name} result${added>1?"s":""}. Predictions now use games up to ${fmtDate(matches[matches.length-1].t)}.` : `No new ${LEAGUES[div].name} results in that file. The data was already up to date.`;
+}
+
+// Team names differ between sources; map to football-data.co.uk spellings
+const ALIAS = {"man utd":"Man United","manchester united":"Man United","manchester city":"Man City","spurs":"Tottenham","tottenham hotspur":"Tottenham",
+ "nottingham forest":"Nott'm Forest","nottm forest":"Nott'm Forest","wolverhampton wanderers":"Wolves","wolverhampton":"Wolves","newcastle united":"Newcastle","newcastle utd":"Newcastle",
+ "brighton & hove albion":"Brighton","brighton and hove albion":"Brighton","west ham united":"West Ham","west ham utd":"West Ham","leeds united":"Leeds","leeds utd":"Leeds",
+ "afc bournemouth":"Bournemouth","ipswich town":"Ipswich","hull city":"Hull","coventry city":"Coventry","leicester city":"Leicester","sheffield utd":"Sheffield United",
+ "sheffield wednesday":"Sheffield Weds","sheff wed":"Sheffield Weds","sheffield wed":"Sheffield Weds","west bromwich albion":"West Brom","wba":"West Brom","queens park rangers":"QPR",
+ "preston north end":"Preston","preston ne":"Preston","stoke city":"Stoke","swansea city":"Swansea","norwich city":"Norwich","cardiff city":"Cardiff","birmingham city":"Birmingham",
+ "blackburn rovers":"Blackburn","bolton wanderers":"Bolton","charlton athletic":"Charlton","derby county":"Derby","lincoln city":"Lincoln","portsmouth fc":"Portsmouth",
+ "peterborough":"Peterboro","peterborough united":"Peterboro","peterborough utd":"Peterboro","mk dons":"Milton Keynes Dons","milton keynes":"Milton Keynes Dons",
+ "wimbledon":"AFC Wimbledon","bradford city":"Bradford","burton albion":"Burton","cambridge united":"Cambridge","cambridge utd":"Cambridge","doncaster rovers":"Doncaster",
+ "huddersfield town":"Huddersfield","luton town":"Luton","mansfield town":"Mansfield","oxford united":"Oxford","oxford utd":"Oxford","plymouth argyle":"Plymouth",
+ "stockport county":"Stockport","wigan athletic":"Wigan","wycombe wanderers":"Wycombe","bristol rovers":"Bristol Rvs","crawley":"Crawley Town","fleetwood":"Fleetwood Town",
+ "newport":"Newport County","accrington stanley":"Accrington","cheltenham town":"Cheltenham","colchester united":"Colchester","colchester utd":"Colchester","crewe alexandra":"Crewe",
+ "exeter city":"Exeter","gillingham fc":"Gillingham","grimsby town":"Grimsby","northampton town":"Northampton","oldham athletic":"Oldham","rochdale afc":"Rochdale",
+ "rotherham united":"Rotherham","rotherham utd":"Rotherham","salford city":"Salford","shrewsbury town":"Shrewsbury","swindon town":"Swindon","tranmere rovers":"Tranmere",
+ "walsall fc":"Walsall","york city":"York","barnet fc":"Barnet","chesterfield fc":"Chesterfield","port vale fc":"Port Vale","harrogate town":"Harrogate","notts co":"Notts County"};
+const norm = s => s.toLowerCase().replace(/[.'’]/g,"").replace(/\b(fc|afc)\b/g,"").replace(/\s+/g," ").trim();
+function teamIndex(){
+  const idx = {};
+  for (const k in LEAGUES){
+    const last = Math.max(...LEAGUES[k].data.map(r=>Date.parse(r[0])));
+    const cur = new Set(LEAGUES[k].data.filter(r=>Date.parse(r[0]) > last - 120*86400000).flatMap(r=>[r[1],r[2]]));
+    (LS.get("extraRows_"+k)||[]).forEach(r=>{cur.add(r[1]);cur.add(r[2]);});
+    cur.forEach(n=>{ idx[n] = k; });
+  }
+  return idx;
+}
+function resolve(name, idx){
+  if (idx[name]) return name;
+  const n = norm(name);
+  if (ALIAS[n] && idx[ALIAS[n]]) return ALIAS[n];
+  for (const k in idx) if (norm(k) === n) return k;
+  const stripped = n.replace(/\b(town|city|united|utd|rovers|athletic|county|wanderers|albion)\b/g,"").replace(/\s+/g," ").trim();
+  const hits = Object.keys(idx).filter(k=>norm(k).replace(/\b(town|city|united|utd|rovers|athletic|county|wanderers|albion)\b/g,"").replace(/\s+/g," ").trim()===stripped);
+  return hits.length===1 ? hits[0] : null;
+}
+
+async function loadFixtures(file){
+  const rows = parseCSV(await file.text());
+  if (!rows.length) { $("msg").innerHTML = `<span class="warn">That file is empty.</span>`; return; }
+  const r0 = rows[0];
+  const fdc = "HomeTeam" in r0, fdl = "Home Team" in r0;
+  if (!fdc && !fdl) { $("msg").innerHTML = `<span class="warn">Couldn't find home and away team columns. Use fixtures.csv from football-data.co.uk or a CSV from fixturedownload.com.</span>`; return; }
+  const idx = teamIndex(), store = LS.get("fixtures2") || {}, unknown = new Set(), added = {E0:0,E1:0,E2:0,E3:0};
+  const today = new Date(); today.setHours(0,0,0,0);
+  for (const r of rows){
+    if (fdc && r.Div && !LEAGUES[r.Div]) continue;
+    const d = isoDate(r.Date); if (!d || Date.parse(d) < today.getTime()) continue;
+    const rawH = fdc ? r.HomeTeam : r["Home Team"], rawA = fdc ? r.AwayTeam : r["Away Team"];
+    const h = resolve(rawH, idx), a = resolve(rawA, idx);
+    if (!h) unknown.add(rawH); if (!a) unknown.add(rawA);
+    if (!h || !a) continue;
+    const div = (fdc && r.Div) ? r.Div : (idx[h]===idx[a] ? idx[h] : null);
+    if (!div) continue;
+    const key = d+"|"+h+"|"+a, old = store[key] || {};
+    const o = +r["Avg>2.5"] || +r["B365>2.5"] || old.o || null, u = +r["Avg<2.5"] || +r["B365<2.5"] || old.u || null;
+    if (!store[key]) added[div]++;
+    const rn = +(r["Round Number"]||0) || old.r || null;
+    store[key] = { d, h, a, div, o, u, r: rn };
+  }
+  for (const k in store) if (Date.parse(store[k].d) < today.getTime()) delete store[k];
+  LS.set("fixtures2", store); refresh();
+  const parts = Object.entries(added).filter(([k,v])=>v).map(([k,v])=>`${v} ${LEAGUES[k].name}`);
+  const withOdds = Object.values(store).filter(f=>f.o).length;
+  $("msg").innerHTML = (parts.length ? `Added upcoming fixtures: ${parts.join(", ")}.` : `No new upcoming fixtures in that file; existing ones were updated.`)
+    + (withOdds ? ` ${withOdds} fixture${withOdds===1?" has":"s have"} bookmaker odds.` : "")
+    + (unknown.size ? ` <span class="warn">Couldn't match ${unknown.size} team name${unknown.size===1?"":"s"}: ${[...unknown].slice(0,8).join(", ")}${unknown.size>8?"…":""}. Send me the names and I'll add them.</span>` : "");
+}
+
+let VIEW = LS0("view") || "league";
+function setView(v){
+  VIEW = v; LS.set("view", v);
+  const top = v === "top";
+  $("topview").hidden = !top;
+  document.querySelectorAll(".lgview").forEach(s=>s.hidden = top);
+  $("status").hidden = top;
+  $("test").hidden = top;
+  $("lg-TOP").setAttribute("aria-pressed", String(top));
+  for (const k in LEAGUES) $("lg-"+k).setAttribute("aria-pressed", String(!top && k===LG));
+  $("lgname").textContent = top ? "All leagues" : LEAGUES[LG].name;
+  if (top) renderTop();
+}
+function setLeague(lg, quiet){
+  if (lg === "TOP") { setView("top"); return; }
+  LG = lg; LS.set("league", lg);
+  if (VIEW !== "league") setView("league");
+  for (const k in LEAGUES) $("lg-"+k).setAttribute("aria-pressed", String(k===lg));
+  $("lg-TOP").setAttribute("aria-pressed", "false");
+  $("lgname").textContent = LEAGUES[lg].name; $("test").textContent = LEAGUES[lg].test;
+  if (!quiet) { build(); fillPickers(); status(); render(); renderFixtures(); renderTrends(); $("msg").textContent=""; }
+}
+
+function refresh(){
+  const h=$("home").value, a=$("away").value;
+  build(); fillPickers(h,a); status(); render(); renderFixtures(); renderTrends();
+  if (VIEW === "top") renderTop();
+}
+
+$("home").addEventListener("change",render);
+$("away").addEventListener("change",render);
+$("swap").addEventListener("click",()=>{ const h=$("home").value; $("home").value=$("away").value; $("away").value=h; render(); });
+$("resfile").addEventListener("change",e=>{ if(e.target.files[0]) loadResults(e.target.files[0]); e.target.value=""; });
+$("fixfile").addEventListener("change",e=>{ if(e.target.files[0]) loadFixtures(e.target.files[0]); e.target.value=""; });
+$("reset").addEventListener("click",()=>{ for (const k in LEAGUES) LS.del("extraRows_"+k); LS.del("fixtures"); LS.del("fixtures2"); refresh(); $("msg").textContent="Loaded files cleared. Back to the built-in data."; });
+
+document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setLeague(b.dataset.lg)));
+if (!LEAGUES[LG]) LG="E0";
+setLeague(LG, true);
+refresh();
+if (VIEW === "top") setView("top");
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+</script>
