@@ -443,9 +443,8 @@ function render(){
     ${(()=>{ const ph=1-Math.exp(-p.xh), pa=1-Math.exp(-p.xa);
       const cell=(v,lab,yes)=>`<div class="bcell${yes?" yes":""}" title="${lab}: ${pct(v)}%"><div class="pv">${pct(v)}%</div><div class="lb">${lab}</div><div class="track"><i style="width:${pct(v)}%"></i></div></div>`;
       return `<div class="bgrid" role="table" aria-label="Who scores: chance of each combination">
-        <div class="h">${away} score</div><div class="h">${away} don't</div>
-        <div class="h rh">${home} score</div>${cell(ph*pa,"Both score",true)}${cell(ph*(1-pa),home+" only")}
-        <div class="h rh">${home} don't</div>${cell((1-ph)*pa,away+" only")}${cell((1-ph)*(1-pa),"Neither scores")}
+        ${cell(ph*pa,"Both score",true)}${cell(ph*(1-pa),home+" only")}
+        ${cell((1-ph)*pa,away+" only")}${cell((1-ph)*(1-pa),"Neither scores")}
       </div>
       <p class="note" style="margin:6px 0 0">Who scores. Green is both teams scoring; the bar in each box shows its share.</p>`; })()}
     ${(()=>{ const f = findFixture(home, away); const q = f ? marketP(f) : null; if (q==null) return ""; const b = bestEst(p.pOver, q);
