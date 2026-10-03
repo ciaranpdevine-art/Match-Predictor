@@ -226,18 +226,6 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
     <div class="panel tablewrap" style="padding:6px 10px"><table id="trends"></table></div>
   </section>
 
-  <section aria-labelledby="up-h">
-    <h2 id="up-h">Update data</h2>
-    <p class="note" style="margin:0">Results, fixtures and bookmaker odds update automatically every morning from football-data.co.uk and fixturedownload.com. You don't need to do anything.</p>
-    <p class="note" style="margin:0">For a quicker refresh on this device only, you can still load a file here: E0.csv to E3.csv from football-data.co.uk for results, or fixtures.csv for this week's odds. Duplicates are skipped.</p>
-    <div class="tools">
-      <label class="filebtn" for="resfile">Load results (E0–E3.csv)<input type="file" id="resfile" accept=".csv,text/csv"></label>
-      <label class="filebtn" for="fixfile">Load fixtures (either source)<input type="file" id="fixfile" accept=".csv,text/csv"></label>
-      <button type="button" id="reset">Clear loaded files</button>
-    </div>
-    <div class="msg" id="msg" role="status"></div>
-  </section>
-
   <section aria-labelledby="how-h">
     <h2 id="how-h">How the numbers are made</h2>
     <ol class="how note">
@@ -248,6 +236,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
       <li>Expected goals for both sides give a total, and a Poisson distribution turns that into the chance of 3 or more goals.</li>
     </ol>
     <p class="note" style="margin:0" id="test"></p>
+    <p class="note" style="margin:0">Results, fixtures and bookmaker odds update automatically every morning from football-data.co.uk and fixturedownload.com.</p>
   </section>
 </div>
 
@@ -578,8 +567,8 @@ function status(){
   let warn = "";
   if (BASE_FIX[LG]) {
     const missed = BASE_FIX[LG].filter(([r,d])=>{ const x = Date.parse(d.slice(0,10)); return x > last && x < Date.now() - 86400000; }).length;
-    if (missed) warn = `${missed} game${missed===1?"":"s"} played since, load the latest ${LEAGUES[LG].file}`;
-  } else if (age > 8) warn = `${age} days old, load the latest ${LEAGUES[LG].file}`;
+    if (missed) warn = `${missed} game${missed===1?"":"s"} played since, check back after tomorrow morning's update`;
+  } else if (age > 8) warn = `${age} days old`;
   $("status").innerHTML = `Results up to <span class="num">${fmtDate(last)}</span> · <span class="num">${matches.length.toLocaleString("en-GB")}</span> ${LEAGUES[LG].name} matches since mid-2022${warn?` · <span class="warn">${warn}</span>`:" · up to date"}`;
 }
 
@@ -702,7 +691,7 @@ function setLeague(lg, quiet){
   for (const k in LEAGUES) $("lg-"+k).setAttribute("aria-pressed", String(k===lg));
   $("lg-TOP").setAttribute("aria-pressed", "false");
   $("lgname").textContent = LEAGUES[lg].name; $("test").textContent = LEAGUES[lg].test;
-  if (!quiet) { build(); fillPickers(); status(); render(); renderFixtures(); renderTrends(); $("msg").textContent=""; }
+  if (!quiet) { build(); fillPickers(); status(); render(); renderFixtures(); renderTrends(); }
 }
 
 function refresh(){
@@ -714,9 +703,8 @@ function refresh(){
 $("home").addEventListener("change",render);
 $("away").addEventListener("change",render);
 $("swap").addEventListener("click",()=>{ const h=$("home").value; $("home").value=$("away").value; $("away").value=h; render(); });
-$("resfile").addEventListener("change",e=>{ if(e.target.files[0]) loadResults(e.target.files[0]); e.target.value=""; });
-$("fixfile").addEventListener("change",e=>{ if(e.target.files[0]) loadFixtures(e.target.files[0]); e.target.value=""; });
-$("reset").addEventListener("click",()=>{ for (const k in LEAGUES) LS.del("extraRows_"+k); LS.del("fixtures"); LS.del("fixtures2"); refresh(); $("msg").textContent="Loaded files cleared. Back to the built-in data."; });
+// Data now updates automatically, so clear anything left over from the old manual upload buttons
+for (const k in LEAGUES) LS.del("extraRows_"+k); LS.del("fixtures"); LS.del("fixtures2");
 
 document.querySelectorAll("header .seg button").forEach(b=>b.addEventListener("click",()=>setLeague(b.dataset.lg)));
 if (!LEAGUES[LG]) LG="E0";
