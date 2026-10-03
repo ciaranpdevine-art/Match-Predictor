@@ -114,6 +114,32 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .chip.u{background:var(--under-soft);color:var(--under)}
 .venue{font-size:.68rem;color:var(--muted);font-family:var(--mono)}
 .note{font-size:.8rem;color:var(--muted)}
+.teamlink{all:unset;cursor:pointer;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;border-bottom:1px dotted currentColor}
+.teamlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+dialog#teamdlg{border:0;border-radius:14px;padding:0;width:min(560px,calc(100% - 20px));max-height:88vh;background:var(--surface);color:var(--fg);box-shadow:0 20px 50px rgba(0,0,0,.3)}
+dialog#teamdlg::backdrop{background:rgba(10,20,15,.5)}
+.td-head{position:sticky;top:0;background:var(--surface);padding:16px 16px 10px;border-bottom:1px solid var(--line);z-index:1}
+.td-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.td-top h2{margin:0;font-size:1.6rem}
+.td-close{border:1px solid var(--line);background:var(--bg);border-radius:8px;width:36px;height:36px;padding:0;font-size:1.2rem;line-height:1}
+.td-head .seg{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);width:100%}
+.td-head .seg button{padding:8px 4px;text-align:center}
+.td-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.td-sum div{min-width:0}
+.td-sum .k{font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.td-sum .v{font-family:var(--mono);font-size:1rem;margin-top:2px}
+.td-body{padding:6px 16px 12px}
+.td-list{list-style:none;margin:0;padding:0}
+.td-list li{display:grid;grid-template-columns:4.6em 1.6em 1fr auto auto auto auto;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:.85rem}
+.td-list .dt{font-size:.72rem;color:var(--muted);font-family:var(--mono);white-space:nowrap}
+.td-list .opp{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.chip.w{background:var(--accent);color:var(--surface)}
+.chip.d{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.chip.l{background:var(--under);color:var(--surface)}
+.chip.n{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.td-foot{display:flex;gap:8px;padding:12px 16px 16px;border-top:1px solid var(--line);position:sticky;bottom:0;background:var(--surface)}
+.td-foot button{flex:1}
+@media (max-width:420px){.td-sum{grid-template-columns:repeat(2,1fr)}.td-list li{grid-template-columns:4.2em 1.4em 1fr auto auto auto auto;gap:5px;font-size:.8rem}}
 .warn{color:var(--warn)}
 .tablewrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:.88rem}
@@ -138,6 +164,18 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
 }
 @media (prefers-reduced-motion:no-preference){.meter .fill,.dist .bar{transition:width .35s ease,height .35s ease}}
 </style>
+
+<dialog id="teamdlg" aria-labelledby="td-name">
+  <div class="td-head">
+    <div class="td-top"><div><div class="note" id="td-lg"></div><h2 id="td-name"></h2></div><button type="button" class="td-close" id="td-close" aria-label="Close">×</button></div>
+    <div class="seg" role="group" aria-label="Games to show">
+      <button type="button" data-v="all">All</button><button type="button" data-v="home">Home</button><button type="button" data-v="away">Away</button>
+    </div>
+    <div class="td-sum" id="td-sum"></div>
+  </div>
+  <div class="td-body"><ul class="td-list" id="td-list"></ul><p class="note" id="td-note" style="margin:8px 0 0"></p></div>
+  <div class="td-foot"><button type="button" id="td-sethome">Set as home team</button><button type="button" id="td-setaway">Set as away team</button></div>
+</dialog>
 
 <div class="wrap">
   <header>
@@ -176,7 +214,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
 
   <section class="lgview" aria-labelledby="tr-h">
     <h2 id="tr-h">Team goal trends</h2>
-    <p class="note" style="margin:0">How many of each team's last 10 league games (home and away) went over 2.5 or had both teams score. Teams with fewer than 10 show it as, say, 4/6. Tap a team to load it as the home side.</p>
+    <p class="note" style="margin:0">How many of each team's last 10 league games (home and away) went over 2.5 or had both teams score. Teams with fewer than 10 show it as, say, 4/6. Tap a team to see its last 20 games.</p>
     <div class="panel tablewrap" style="padding:6px 10px"><table id="trends"></table></div>
   </section>
 
@@ -403,8 +441,8 @@ function render(){
       return `<p class="note" style="margin:10px 0 0">Bookmakers: <span class="num">${pct(q)}%</span> · Best estimate: <strong class="num">${pct(b)}%</strong>${(BLEND_W[LG]??0)===0?" (in this league, the bookmaker price has been the better guide)":""}</p>`; })()}
     ${thin ? `<p class="note warn">Few past games for ${p.homeGames<4?home+" at home":away+" away"}, so this leans heavily on league averages.</p>` : ""}
     <div class="form">
-      <div><h3>${home} last 6</h3><ul class="fl">${formList(home)}</ul></div>
-      <div><h3>${away} last 6</h3><ul class="fl">${formList(away)}</ul></div>
+      <div><h3><button type="button" class="teamlink" data-team="${home}">${home}</button> last 6</h3><ul class="fl">${formList(home)}</ul></div>
+      <div><h3><button type="button" class="teamlink" data-team="${away}">${away}</button> last 6</h3><ul class="fl">${formList(away)}</ul></div>
     </div>`;
 }
 
@@ -460,10 +498,56 @@ function renderTrends(){
   $("trends").innerHTML = `<thead><tr><th>Team</th><th class="r">Over 2.5</th><th class="r">BTTS</th><th class="r">Avg goals</th></tr></thead>
   <tbody>${rows.map(r=>`<tr class="click" data-t="${r.t}" tabindex="0"><td>${r.t}</td><td class="r num">${r.over}${r.n<10?"/"+r.n:""}</td><td class="r num">${r.btts}${r.n<10?"/"+r.n:""}</td><td class="r num">${r.avg.toFixed(1)}</td></tr>`).join("")}</tbody>`;
   $("trends").querySelectorAll("tr.click").forEach(tr=>{
-    const go=()=>{ $("home").value=tr.dataset.t; if($("away").value===tr.dataset.t){ $("away").selectedIndex=($("away").selectedIndex+1)%$("away").options.length; } render(); $("pick-h").scrollIntoView({behavior:"smooth"}); };
+    const go=()=>openTeam(tr.dataset.t);
     tr.addEventListener("click",go); tr.addEventListener("keydown",e=>{if(e.key==="Enter")go();});
   });
 }
+
+// Team pop-up: last 20 games, filterable by home/away
+let TD = { team: null, view: "all" };
+function openTeam(team){
+  TD.team = team; TD.view = "all"; renderTeam();
+  const d = $("teamdlg"); if (!d.open) { if (d.showModal) d.showModal(); else d.setAttribute("open",""); }
+  $("td-list").parentElement.scrollTop = 0;
+}
+function renderTeam(){
+  const team = TD.team, v = TD.view;
+  const all = matches.filter(m=>(v!=="away"&&m.h===team)||(v!=="home"&&m.a===team));
+  const g = all.slice(-20).reverse();
+  document.querySelectorAll("#teamdlg .seg button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.v===v)));
+  $("td-name").textContent = team; $("td-lg").textContent = LEAGUES[LG].name;
+  if (!g.length) { $("td-sum").innerHTML=""; $("td-list").innerHTML=""; $("td-note").textContent="No games found."; return; }
+  let w=0,dr=0,l=0,ov=0,bt=0,gf=0,ga=0;
+  const rows = g.map(m=>{
+    const home = m.h===team, f = home?m.hg:m.ag, a = home?m.ag:m.hg, tot = m.hg+m.ag, both = m.hg>0&&m.ag>0;
+    const res = f>a?"W":f<a?"L":"D"; if(res==="W")w++; else if(res==="L")l++; else dr++;
+    if(tot>=3) ov++; if(both) bt++; gf+=f; ga+=a;
+    const dt = new Date(m.t).toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"2-digit"});
+    return `<li><span class="dt">${dt}</span><span class="venue">${home?"H":"A"}</span><span class="opp">${home?"v":"at"} ${home?m.a:m.h}</span><span class="num">${f}-${a}</span><span class="chip ${res.toLowerCase()}" title="${res==="W"?"Won":res==="L"?"Lost":"Drew"}">${res}</span><span class="chip ${tot>=3?"o":"u"}" title="${tot} goals">${tot>=3?"O":"U"}</span><span class="chip ${both?"o":"n"}" title="Both teams scored: ${both?"yes":"no"}">${both?"BT":"–"}</span></li>`;
+  });
+  const n = g.length, p = x => Math.round(x/n*100);
+  $("td-sum").innerHTML = `
+    <div><div class="k">W-D-L</div><div class="v">${w}-${dr}-${l}</div></div>
+    <div><div class="k">Over 2.5</div><div class="v">${ov}/${n} · ${p(ov)}%</div></div>
+    <div><div class="k">BTTS</div><div class="v">${bt}/${n} · ${p(bt)}%</div></div>
+    <div><div class="k">Goals F–A</div><div class="v">${(gf/n).toFixed(1)}–${(ga/n).toFixed(1)}</div></div>`;
+  $("td-list").innerHTML = rows.join("");
+  $("td-note").textContent = `${v==="all"?"Last":v==="home"?"Last home":"Last away"} ${n} league game${n===1?"":"s"}, newest first. Scores are shown ${team} first. O/U = over or under 2.5 goals, BT = both teams scored.`;
+}
+function closeTeam(){ const d=$("teamdlg"); if (d.close) d.close(); else d.removeAttribute("open"); }
+function teamTo(side){
+  const t = TD.team; closeTeam(); ensureOption(t);
+  const other = side==="home" ? "away" : "home";
+  $(side).value = t;
+  if ($(other).value === t) $(other).selectedIndex = ($(other).selectedIndex+1) % $(other).options.length;
+  render(); $("pick-h").scrollIntoView({behavior:"smooth"});
+}
+document.querySelectorAll("#teamdlg .seg button").forEach(b=>b.addEventListener("click",()=>{ TD.view=b.dataset.v; renderTeam(); }));
+$("td-close").addEventListener("click", closeTeam);
+$("td-sethome").addEventListener("click", ()=>teamTo("home"));
+$("td-setaway").addEventListener("click", ()=>teamTo("away"));
+$("teamdlg").addEventListener("click", e=>{ if (e.target.id==="teamdlg") closeTeam(); });
+$("out").addEventListener("click", e=>{ const b = e.target.closest(".teamlink"); if (b) openTeam(b.dataset.team); });
 
 function ensureOption(t){
   for (const id of ["home","away"]) if (![...$(id).options].some(o=>o.value===t)) $(id).add(new Option(t,t));
@@ -623,7 +707,7 @@ $("resfile").addEventListener("change",e=>{ if(e.target.files[0]) loadResults(e.
 $("fixfile").addEventListener("change",e=>{ if(e.target.files[0]) loadFixtures(e.target.files[0]); e.target.value=""; });
 $("reset").addEventListener("click",()=>{ for (const k in LEAGUES) LS.del("extraRows_"+k); LS.del("fixtures"); LS.del("fixtures2"); refresh(); $("msg").textContent="Loaded files cleared. Back to the built-in data."; });
 
-document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setLeague(b.dataset.lg)));
+document.querySelectorAll("header .seg button").forEach(b=>b.addEventListener("click",()=>setLeague(b.dataset.lg)));
 if (!LEAGUES[LG]) LG="E0";
 setLeague(LG, true);
 refresh();
