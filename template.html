@@ -86,15 +86,20 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .pick .rk{font-family:var(--mono);font-size:.75rem;color:var(--muted);width:1.2em}
 .pick .m{font-weight:600;min-width:0;overflow-wrap:anywhere}
 .pick .d{font-size:.75rem;color:var(--muted);font-weight:400}
-.pick .pp{font-family:var(--mono);font-size:1.05rem}
+.pick .pp{font-family:var(--mono);font-size:1.05rem;text-align:right}
+.pick .pp small{display:block;font-size:.68rem;color:var(--muted);font-family:var(--body);white-space:nowrap}
+#top-metric{display:grid;grid-template-columns:1fr 1fr;width:100%;max-width:360px;margin:4px 0 2px}
+#top-metric button{padding:10px 6px;text-align:center;font-size:.95rem}
 .lgview[hidden],#topview[hidden]{display:none}
 @media (max-width:520px){.top-cols{grid-template-columns:1fr}}
 #trends th{white-space:normal;vertical-align:bottom}
 #trends th,#trends td{padding-left:6px;padding-right:6px}
 #trends td:first-child{white-space:normal}
-.bgrid{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;margin-top:20px;align-items:stretch}
-.bgrid .h{font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;align-items:flex-end;justify-content:center;text-align:center;padding:0 2px 2px;min-width:0;overflow-wrap:anywhere}
-.bgrid .rh{justify-content:flex-end;align-items:center;text-align:right;padding:0 6px 0 0;max-width:7.5em}
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:20px;align-items:stretch}
+.bgrid .h{font-size:.78rem;color:var(--muted);font-weight:600;text-align:center;padding:0 4px 2px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bgrid .rh{grid-column:1 / -1;text-align:left;padding:8px 2px 0;color:var(--fg)}
+.bgrid .rh:first-of-type{padding-top:0}
+.bcell .lb{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bcell{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .bcell .pv{font-family:var(--mono);font-size:1.25rem;line-height:1}
 .bcell .lb{font-size:.72rem;color:var(--muted)}
@@ -193,6 +198,9 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
 
   <section id="topview" aria-labelledby="top-h" hidden>
     <h2 id="top-h">Top picks</h2>
+    <div class="seg" id="top-metric" role="group" aria-label="Rank matches by">
+      <button type="button" data-m="pOver">Over 2.5</button><button type="button" data-m="pBtts">BTTS</button>
+    </div>
     <p class="note" style="margin:0" id="top-note"></p>
     <div id="top"></div>
   </section>
@@ -276,6 +284,7 @@ function buildFor(lg){
 function build(){ ({ matches, fixtures } = buildFor(LG)); }
 
 const TOP_N = 3, TOP_DAYS = 7;
+let TOP_METRIC = LS0("topMetric") === "pBtts" ? "pBtts" : "pOver";
 function renderTop(){
   const el = $("top"); let html = "";
   for (const lg in LEAGUES) {
@@ -285,19 +294,21 @@ function renderTop(){
     const asOf = new Date(ms[ms.length-1].t + 86400000);
     const rows = fs.filter(f=>Date.parse(f.d) < end).map(f=>({ f, p: predict(ms, f.h, f.a, asOf) })).filter(r=>r.p);
     const lastD = rows.length ? Date.parse(rows[rows.length-1].f.d) : start;
-    const list = (key) => rows.slice().sort((x,y)=>y.p[key]-x.p[key]).slice(0, TOP_N).map((r,i)=>{
+    const key = TOP_METRIC, other = key === "pOver" ? "pBtts" : "pOver", otherLab = key === "pOver" ? "BTTS" : "Over 2.5";
+    const list = () => rows.slice().sort((x,y)=>y.p[key]-x.p[key]).slice(0, TOP_N).map((r,i)=>{
       const t = Date.parse(r.f.d);
       return `<div class="pick" role="button" tabindex="0" data-lg="${lg}" data-h="${r.f.h}" data-a="${r.f.a}">
         <span class="rk">${i+1}</span>
         <span class="m">${r.f.h} v ${r.f.a}<br><span class="d">${fmtShort(t)}${r.f.d.length>10?" · "+r.f.d.slice(11,16):""}</span></span>
-        <span class="pp">${pct(r.p[key])}%</span></div>`; }).join("");
+        <span class="pp">${pct(r.p[key])}%<small>${otherLab} ${pct(r.p[other])}%</small></span></div>`; }).join("");
     html += `<div class="panel top-lg">
       <div><h2 style="margin:0">${LEAGUES[lg].name}</h2><span class="note">${rows.length} matches, ${fmtShort(start)}${lastD-start>86400000?" – "+fmtShort(lastD):""}</span></div>
-      <div class="top-cols"><div><h3>Over 2.5</h3>${list("pOver")}</div><div><h3>BTTS</h3>${list("pBtts")}</div></div>
+      <div>${list()}</div>
     </div>`;
   }
   el.innerHTML = html;
-  $("top-note").textContent = `The ${TOP_N} highest model chances in each league, from each league's next ${TOP_DAYS} days of fixtures. Tap a match to open its full prediction.`;
+  document.querySelectorAll("#top-metric button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.m===TOP_METRIC)));
+  $("top-note").textContent = `The ${TOP_N} matches in each league most likely to ${TOP_METRIC==="pOver"?"have 3 or more goals":"see both teams score"}, from each league's next ${TOP_DAYS} days of fixtures. Tap a match to open its full prediction.`;
   el.querySelectorAll(".pick").forEach(row=>{
     const go = ()=>{ setLeague(row.dataset.lg); ensureOption(row.dataset.h); ensureOption(row.dataset.a); $("home").value=row.dataset.h; $("away").value=row.dataset.a; render(); $("pick-h").scrollIntoView({behavior:"smooth"}); };
     row.addEventListener("click", go);
@@ -396,9 +407,9 @@ function render(){
     ${(()=>{ const ph=1-Math.exp(-p.xh), pa=1-Math.exp(-p.xa);
       const cell=(v,lab,yes)=>`<div class="bcell${yes?" yes":""}" title="${lab}: ${pct(v)}%"><div class="pv">${pct(v)}%</div><div class="lb">${lab}</div><div class="track"><i style="width:${pct(v)}%"></i></div></div>`;
       return `<div class="bgrid" role="table" aria-label="Who scores: chance of each combination">
-        <div></div><div class="h">${away} score</div><div class="h">${away} don't</div>
+        <div class="h">${away} score</div><div class="h">${away} don't</div>
         <div class="h rh">${home} score</div>${cell(ph*pa,"Both score",true)}${cell(ph*(1-pa),home+" only")}
-        <div class="h rh">${home} don't</div>${cell((1-ph)*pa,away+" only")}${cell((1-ph)*(1-pa),"Neither (0-0)")}
+        <div class="h rh">${home} don't</div>${cell((1-ph)*pa,away+" only")}${cell((1-ph)*(1-pa),"Neither scores")}
       </div>
       <p class="note" style="margin:6px 0 0">Who scores. Green is both teams scoring; the bar in each box shows its share.</p>`; })()}
     ${(()=>{ const f = findFixture(home, away); const q = f ? marketP(f) : null; if (q==null) return ""; const b = bestEst(p.pOver, q);
@@ -508,6 +519,7 @@ function teamTo(side){
 }
 document.querySelectorAll("#teamdlg .seg button").forEach(b=>b.addEventListener("click",()=>{ TD.view=b.dataset.v; renderTeam(); }));
 $("td-close").addEventListener("click", closeTeam);
+document.querySelectorAll("#top-metric button").forEach(b=>b.addEventListener("click",()=>{ TOP_METRIC = b.dataset.m; LS.set("topMetric", TOP_METRIC); renderTop(); }));
 $("td-sethome").addEventListener("click", ()=>teamTo("home"));
 $("td-setaway").addEventListener("click", ()=>teamTo("away"));
 $("teamdlg").addEventListener("click", e=>{ if (e.target.id==="teamdlg") closeTeam(); });
