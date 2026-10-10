@@ -17,17 +17,17 @@
 /* Layout: single column matchday sheet; fixtures first, then predictor, team trends, data tools */
 :root{
   --bg:#f2f5f1; --surface:#ffffff; --fg:#13201a; --muted:#5a6a61; --line:#d7dfd9;
-  --accent:#1d7a4b; --accent-soft:#dcefe3; --under:#6a7890; --under-soft:#e5e9f0; --warn:#a4661c;
+  --accent:#1d7a4b; --accent-soft:#dcefe3; --under:#6a7890; --under-soft:#e5e9f0; --warn:#a4661c; --down:#b3261e;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0d1511; --surface:#15201a; --fg:#e4ece6; --muted:#94a49a; --line:#25332b;
-  --accent:#4fc98b; --accent-soft:#183a28; --under:#9eacc2; --under-soft:#222b38; --warn:#e0a35a; color-scheme:dark}}
+  --accent:#4fc98b; --accent-soft:#183a28; --under:#9eacc2; --under-soft:#222b38; --warn:#e0a35a; --down:#ff8a80; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0d1511; --surface:#15201a; --fg:#e4ece6; --muted:#94a49a; --line:#25332b;
-  --accent:#4fc98b; --accent-soft:#183a28; --under:#9eacc2; --under-soft:#222b38; --warn:#e0a35a; color-scheme:dark}
+  --accent:#4fc98b; --accent-soft:#183a28; --under:#9eacc2; --under-soft:#222b38; --warn:#e0a35a; --down:#ff8a80; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 48px}
 .wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
@@ -91,11 +91,26 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 #top-metric{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:560px;margin:4px 0 2px}
 #top-metric button{padding:10px 4px;text-align:center;font-size:.85rem;line-height:1.2}
 .pick .sb{display:block;font-size:.72rem;color:var(--muted);font-weight:400;margin-top:1px}
+.pick .sb .up{color:var(--accent);font-weight:600}
+.pick .sb .down{color:var(--down);font-weight:600}
 .pick .pk{display:block;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1px}
 .days{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}
 .days::-webkit-scrollbar{display:none}
 .days button{flex:0 0 auto;padding:7px 12px;border-radius:999px;font-size:.85rem;color:var(--muted);background:var(--surface)}
 .days button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.tsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tsum .k{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tsum .v{font-size:1.3rem;margin-top:2px}
+.tdays details{border-top:1px solid var(--line);padding:8px 0}
+.tdays summary{display:flex;justify-content:space-between;gap:8px;cursor:pointer;font-size:.9rem;list-style:none}
+.tdays summary::-webkit-details-marker{display:none}
+.tdays summary::before{content:"▸";color:var(--muted);margin-right:4px}
+.tdays details[open] summary::before{content:"▾"}
+.tdays summary>span:first-child{flex:1}
+.trk{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.84rem}
+.trk li{display:grid;grid-template-columns:1.4em 1fr auto auto;gap:8px;align-items:center}
+.trk .tm{min-width:0}
+.tk{font-weight:700;text-align:center} .tk.hit{color:var(--accent)} .tk.miss{color:var(--down)} .tk.wait{color:var(--muted)}
 .lgtag{font-family:var(--mono);font-size:.68rem;padding:1px 5px;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
 .top-lg.best{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .lgview[hidden],#topview[hidden]{display:none}
@@ -261,6 +276,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
 </div>
 
 <script>
+const TRACK = __TRACK__; // saved pre-match predictions: "lg|kickoff|home|away" -> [pOver,pBtts,pH,pD,pA,pHB,pAB,pHO,pAO]
 const BASE_ODDS = __ODDS__; // [div, local kick-off, home, away, over 2.5 odds, under 2.5 odds] from football-data fixtures.csv
 const BASE_FIX = { E0: __FIXTURES_E0__, E1: __FIXTURES_E1__, E2: __FIXTURES_E2__, E3: __FIXTURES_E3__ }; // [round, local kick-off, home, away]; PL from fixturedownload.com, Championship from openfootball
 let selRound = {};
@@ -294,12 +310,65 @@ function build(){ ({ matches, fixtures } = buildFor(LG)); }
 
 const TOP_N = 3, TOP_DAYS = 7;
 let TOP_METRIC = ["pOver","pBtts","WB","WO"].includes(LS0("topMetric")) ? LS0("topMetric") : "pOver";
+// compare the other market with the one being ranked: green ▲ if more likely, red ▼ if less
+function vs(label, other, main){
+  const o = pct(other), m = pct(main);
+  const cls = o > m ? "up" : o < m ? "down" : "same", arrow = o > m ? "▲" : o < m ? "▼" : "=";
+  return `<span class="${cls}" title="${label} is ${o>m?"more":o<m?"less":"equally"} likely than the main pick">${label} ${o}% ${arrow}</span>`;
+}
 const MARKETS = {
-  pOver: { label: "Over 2.5", val: p => p.pOver, pick: () => "Over 2.5 goals", sub: p => `BTTS ${pct(p.pBtts)}%`, desc: "have 3 or more goals" },
-  pBtts: { label: "BTTS", val: p => p.pBtts, pick: () => "Both teams score", sub: p => `Over 2.5 ${pct(p.pOver)}%`, desc: "see both teams score" },
+  pOver: { label: "Over 2.5", val: p => p.pOver, pick: () => "Over 2.5 goals", sub: p => vs("BTTS", p.pBtts, p.pOver), desc: "have 3 or more goals" },
+  pBtts: { label: "BTTS", val: p => p.pBtts, pick: () => "Both teams score", sub: p => vs("Over 2.5", p.pOver, p.pBtts), desc: "see both teams score" },
   WB: { label: "Win + BTTS", val: p => Math.max(p.pHB, p.pAB), pick: (p, f) => `${p.pHB >= p.pAB ? f.h : f.a} win & BTTS`, sub: p => `Win ${pct(p.pHB >= p.pAB ? p.pH : p.pA)}% · BTTS ${pct(p.pBtts)}%`, desc: "see one side win with both teams scoring" },
   WO: { label: "Win + O2.5", val: p => Math.max(p.pHO, p.pAO), pick: (p, f) => `${p.pHO >= p.pAO ? f.h : f.a} win & over 2.5`, sub: p => `Win ${pct(p.pHO >= p.pAO ? p.pH : p.pA)}% · Over ${pct(p.pOver)}%`, desc: "see one side win with 3 or more goals" },
 };
+// Track record: each day's top picks (saved before kick-off) checked against results
+const TRACK_EVAL = {
+  pOver: a => ({ v: a[0], label: "Over 2.5", hit: (h, g) => h + g >= 3 }),
+  pBtts: a => ({ v: a[1], label: "BTTS", hit: (h, g) => h > 0 && g > 0 }),
+  WB: a => a[5] >= a[6] ? { v: a[5], side: "h", hit: (h, g) => h > g && g > 0 } : { v: a[6], side: "a", hit: (h, g) => g > h && h > 0 },
+  WO: a => a[7] >= a[8] ? { v: a[7], side: "h", hit: (h, g) => h > g && h + g >= 3 } : { v: a[8], side: "a", hit: (h, g) => g > h && h + g >= 3 },
+};
+function renderTrack(per, M){
+  const res = {};
+  for (const lg in per) for (const m of per[lg].ms) res[`${lg}|${m.d}|${m.h}|${m.a}`] = m;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const byDay = {};
+  for (const [k, a] of Object.entries(TRACK)) {
+    const [lg, ko, h, aw] = k.split("|"), day = ko.slice(0,10);
+    const e = TRACK_EVAL[TOP_METRIC](a), m = res[`${lg}|${day}|${h}|${aw}`];
+    const old = Date.parse(day+"T12:00") < today.getTime() - 3*86400000;
+    const status = m ? (e.hit(m.hg, m.ag) ? "hit" : "miss") : old ? "void" : "wait";
+    if (status === "void") continue; // postponed or never reported
+    (byDay[day] = byDay[day] || []).push({ lg, ko, h, a: aw, v: e.v, side: e.side, status, m });
+  }
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+  const days = Object.keys(byDay).filter(d => d <= todayStr).sort().reverse(); // future days aren't shown
+  let n = 0, hits = 0, exp = 0, opened = false;
+  const anyDone = days.some(d => byDay[d].some(r => r.status !== "wait"));
+  const dayRows = days.map(day => {
+    const top = byDay[day].sort((x,y)=>y.v-x.v).slice(0, BEST_N);
+    const done = top.filter(r=>r.status!=="wait");
+    done.forEach(r=>{ n++; exp += r.v; if (r.status==="hit") hits++; });
+    const dh = done.filter(r=>r.status==="hit").length, de = done.reduce((s,r)=>s+r.v,0);
+    const lab = new Date(day+"T12:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+    const head = done.length ? `<b>${dh} of ${done.length}</b> landed <span class="note">· expected ${de.toFixed(1)}</span>${done.length<top.length?` <span class="note">· ${top.length-done.length} to play</span>`:""}` : `<span class="note">awaiting results</span>`;
+    const list = top.map(r=>{
+      const icon = r.status==="hit" ? `<span class="tk hit" title="Landed">✓</span>` : r.status==="miss" ? `<span class="tk miss" title="Missed">✗</span>` : `<span class="tk wait" title="Not played yet">…</span>`;
+      const pick = r.side ? `${r.side==="h"?r.h:r.a} win · ` : "";
+      return `<li>${icon}<span class="tm">${pick}${r.h} v ${r.a}<span class="note"> · ${LG_SHORT[r.lg]}</span></span><span class="num">${r.m ? r.m.hg+"-"+r.m.ag : ""}</span><span class="num note">${pct(r.v)}%</span></li>`;
+    }).join("");
+    const open = !opened && (anyDone ? done.length > 0 : true); if (open) opened = true;
+    return `<details${open?" open":""}><summary><span>${lab}</span><span>${head}</span></summary><ul class="trk">${list}</ul></details>`;
+  }).join("");
+  const sum = n ? `<div class="tsum"><div><div class="k">Landed</div><div class="v num">${hits}/${n}</div></div><div><div class="k">Hit rate</div><div class="v num">${Math.round(hits/n*100)}%</div></div><div><div class="k">Model expected</div><div class="v num">${Math.round(exp/n*100)}%</div></div></div>` : `<p class="note" style="margin:0">No results to check yet. Picks are graded the morning after each match.</p>`;
+  return `<div class="panel top-lg">
+    <div><h2 style="margin:0">Track record</h2><span class="note">Each day's top ${BEST_N} ${M.label} picks across all leagues, saved before kick-off, checked against the results.</span></div>
+    ${sum}
+    <div class="tdays">${dayRows || ""}</div>
+    <p class="note" style="margin:0">Record started 10 Oct 2026. If the hit rate stays close to or above what the model expected over a few weeks, its percentages can be trusted.</p>
+  </div>`;
+}
 const LG_SHORT = { E0: "Prem", E1: "Champ", E2: "Lg 1", E3: "Lg 2" };
 const BEST_N = 6;
 let TOP_SEL = new Set(); // chosen days (YYYY-MM-DD); empty = all days
@@ -351,11 +420,12 @@ function renderTop(){
       <div>${top.map((r,i)=>pickRow(r,i,false)).join("")}</div>
     </div>`;
   }
+  const trackHtml = renderTrack(per, M);
   const best = all.sort((x,y)=>M.val(y.p)-M.val(x.p)).slice(0, BEST_N);
   el.innerHTML = `<div class="panel top-lg best">
       <div><h2 style="margin:0">Best across all leagues</h2><span class="note">The ${BEST_N} strongest ${M.label} picks from all four leagues${TOP_SEL.size ? ", on " + [...TOP_SEL].sort().map(dayLab).join(", ") : ""}</span></div>
       <div>${best.length ? best.map((r,i)=>pickRow(r,i,true)).join("") : `<p class="note">No matches on the chosen days.</p>`}</div>
-    </div>` + cards;
+    </div>` + cards + trackHtml;
   document.querySelectorAll("#top-metric button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.m===TOP_METRIC)));
   $("top-note").textContent = `Matches most likely to ${M.desc}, over the next ${TOP_DAYS} days. Pick one or more days to narrow it down. Tap a match to open its full prediction.`;
   el.querySelectorAll(".pick").forEach(row=>{

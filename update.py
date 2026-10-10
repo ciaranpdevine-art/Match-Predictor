@@ -10,7 +10,7 @@ Run by the GitHub workflow every morning. It only needs the Python standard libr
 Every download is optional: if a site is down or a file looks wrong, that part
 is skipped, the existing data is kept, and the site is still rebuilt.
 """
-import csv, io, json, os, re, sys, urllib.request
+import csv, io, json, os, re, shutil, subprocess, sys, urllib.request
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -180,11 +180,24 @@ def update_odds(text):
     log(f"  odds for {len(out)} upcoming matches")
 
 
+# ---------- track record ----------
+def save_predictions():
+    """Save today's predictions (via the same JavaScript model the app uses) so they can be graded later."""
+    node = shutil.which("node")
+    if not node:
+        log("  node not found, skipped")
+        return
+    out = subprocess.run([node, os.path.join(ROOT, "track.js")], capture_output=True, text=True,
+                         env={**os.environ, "TZ": "Europe/London"}, timeout=300)
+    log(out.stdout.strip() or out.stderr.strip())
+
+
 # ---------- build ----------
 def build():
     t = open(os.path.join(ROOT, "template.html"), encoding="utf-8").read()
     parts = {"__MODEL__": open(os.path.join(ROOT, "model.js"), encoding="utf-8").read(),
-             "__ODDS__": json.dumps(load("odds.json", []), separators=(",", ":"))}
+             "__ODDS__": json.dumps(load("odds.json", []), separators=(",", ":")),
+             "__TRACK__": json.dumps(load("track.json", {}), separators=(",", ":"))}
     for lg in LEAGUES:
         parts[f"__RESULTS_{lg}__"] = json.dumps(load(f"results_{lg}.json", []), separators=(",", ":"))
         parts[f"__FIXTURES_{lg}__"] = json.dumps(load(f"fixtures_{lg}.json", []), separators=(",", ":"))
@@ -224,6 +237,8 @@ def main():
         log("Odds")
         if not res_dir:
             step("odds", lambda: update_odds(fetch("https://www.football-data.co.uk/fixtures.csv")))
+        log("Track record")
+        step("track", save_predictions)
     build()
 
 
