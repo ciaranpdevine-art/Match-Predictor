@@ -236,6 +236,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
       <button type="button" data-m="pOver">Over 2.5</button><button type="button" data-m="pBtts">BTTS</button><button type="button" data-m="WB">Win +<br>BTTS</button><button type="button" data-m="WO">Win +<br>O2.5</button>
     </div>
     <div class="days" id="top-days" role="group" aria-label="Days to include"></div>
+    <div class="days times" id="top-times" role="group" aria-label="Kick-off times to include"></div>
     <p class="note" style="margin:0" id="top-note"></p>
     <div id="top"></div>
   </section>
@@ -372,6 +373,7 @@ function renderTrack(per, M){
 const LG_SHORT = { E0: "Prem", E1: "Champ", E2: "Lg 1", E3: "Lg 2" };
 const BEST_N = 6;
 let TOP_SEL = new Set(); // chosen days (YYYY-MM-DD); empty = all days
+let TOP_TIMES = new Set(); // chosen kick-off times (HH:MM); empty = all times
 function renderTop(){
   const el = $("top"), M = MARKETS[TOP_METRIC];
   const pickRow = (r, i, showLg) => {
@@ -408,26 +410,40 @@ function renderTop(){
     if (!d) TOP_SEL.clear(); else if (TOP_SEL.has(d)) TOP_SEL.delete(d); else TOP_SEL.add(d);
     renderTop();
   }));
+  // kick-off times on the chosen days
+  const ktime = r => r.f.d.length > 10 ? r.f.d.slice(11,16) : "";
+  const times = new Set();
+  for (const lg in byLg) if (byLg[lg]) byLg[lg].filter(onDay).forEach(r=>{ const k = ktime(r); if (k) times.add(k); });
+  for (const k of [...TOP_TIMES]) if (!times.has(k)) TOP_TIMES.delete(k);
+  const onPick = r => onDay(r) && (!TOP_TIMES.size || TOP_TIMES.has(ktime(r)));
+  $("top-times").innerHTML = `<button type="button" data-time="" aria-pressed="${!TOP_TIMES.size}">All times</button>` +
+    [...times].sort().map(k=>`<button type="button" data-time="${k}" aria-pressed="${TOP_TIMES.has(k)}">${k}</button>`).join("");
+  $("top-times").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    const k = b.dataset.time;
+    if (!k) TOP_TIMES.clear(); else if (TOP_TIMES.has(k)) TOP_TIMES.delete(k); else TOP_TIMES.add(k);
+    renderTop();
+  }));
+  const filterLab = (TOP_SEL.size ? ", on " + [...TOP_SEL].sort().map(dayLab).join(", ") : "") + (TOP_TIMES.size ? `, kicking off at ${[...TOP_TIMES].sort().join(", ")}` : "");
   let all = [], cards = "";
   for (const lg in LEAGUES) {
     if (!byLg[lg]) { cards += `<div class="panel top-lg"><h2 style="margin:0">${LEAGUES[lg].name}</h2><p class="note" style="margin:0">No upcoming fixtures loaded.</p></div>`; continue; }
-    const rows = byLg[lg].filter(onDay);
+    const rows = byLg[lg].filter(onPick);
     all = all.concat(rows);
     const top = rows.slice().sort((x,y)=>M.val(y.p)-M.val(x.p)).slice(0, TOP_N);
     const ds = [...new Set(rows.map(r=>r.f.d.slice(0,10)))].map(dayLab);
     cards += `<div class="panel top-lg">
-      <div><h2 style="margin:0">${LEAGUES[lg].name}</h2><span class="note">${rows.length ? `${rows.length} match${rows.length===1?"":"es"} · ${ds.length>3 ? ds[0]+" – "+ds[ds.length-1] : ds.join(", ")}` : "No matches on the chosen days"}</span></div>
+      <div><h2 style="margin:0">${LEAGUES[lg].name}</h2><span class="note">${rows.length ? `${rows.length} match${rows.length===1?"":"es"} · ${ds.length>3 ? ds[0]+" – "+ds[ds.length-1] : ds.join(", ")}` : "No matches on the chosen days and times"}</span></div>
       <div>${top.map((r,i)=>pickRow(r,i,false)).join("")}</div>
     </div>`;
   }
   const trackHtml = renderTrack(per, M);
   const best = all.sort((x,y)=>M.val(y.p)-M.val(x.p)).slice(0, BEST_N);
   el.innerHTML = `<div class="panel top-lg best">
-      <div><h2 style="margin:0">Best across all leagues</h2><span class="note">The ${BEST_N} strongest ${M.label} picks from all four leagues${TOP_SEL.size ? ", on " + [...TOP_SEL].sort().map(dayLab).join(", ") : ""}</span></div>
-      <div>${best.length ? best.map((r,i)=>pickRow(r,i,true)).join("") : `<p class="note">No matches on the chosen days.</p>`}</div>
+      <div><h2 style="margin:0">Best across all leagues</h2><span class="note">The ${BEST_N} strongest ${M.label} picks from all four leagues${filterLab}</span></div>
+      <div>${best.length ? best.map((r,i)=>pickRow(r,i,true)).join("") : `<p class="note">No matches on the chosen days and times.</p>`}</div>
     </div>` + cards + trackHtml;
   document.querySelectorAll("#top-metric button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.m===TOP_METRIC)));
-  $("top-note").textContent = `Matches most likely to ${M.desc}, over the next ${TOP_DAYS} days. Pick one or more days to narrow it down. Tap a match to open its full prediction.`;
+  $("top-note").textContent = `Matches most likely to ${M.desc}, over the next ${TOP_DAYS} days. Pick days and kick-off times to narrow it down. Tap a match to open its full prediction.`;
   el.querySelectorAll(".pick").forEach(row=>{
     const go = ()=>{ setLeague(row.dataset.lg); ensureOption(row.dataset.h); ensureOption(row.dataset.a); $("home").value=row.dataset.h; $("away").value=row.dataset.a; render(); $("pick-h").scrollIntoView({behavior:"smooth"}); };
     row.addEventListener("click", go);
