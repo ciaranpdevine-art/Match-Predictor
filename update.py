@@ -240,6 +240,10 @@ def main():
         log("Odds")
         if not res_dir:
             step("odds", lambda: update_odds(fetch("https://www.football-data.co.uk/fixtures.csv")))
+        if not res_dir:
+            log("Europe (Champions League tab)")
+            import europe
+            step("europe", lambda: europe.run(fetch, log, ROOT, year))
         log("Track record")
         step("track", save_predictions)
     build()
