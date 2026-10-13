@@ -1,4 +1,4 @@
-Last run: 2026-10-13 16:07 UK time
+Last run: 2026-10-13 16:08 UK time
 Results (season 2627)
   E0: 0 new results, latest 2026-10-12
   E1: 0 new results, latest 2026-10-11
@@ -12,16 +12,16 @@ Fixtures
 Odds
   odds for 13 upcoming matches
 Europe (Champions League tab)
-  SP1: 838 new, 838 stored, latest 2026-10-12
-  D1: 657 new, 657 stored, latest 2026-10-11
-  I1: 820 new, 820 stored, latest 2026-10-12
-  F1: 666 new, 666 stored, latest 2026-10-11
-  N1: 684 new, 684 stored, latest 2026-10-11
-  P1: 683 new, 683 stored, latest 2026-10-12
-  B1: 695 new, 695 stored, latest 2026-10-11
-  SC0: 504 new, 504 stored, latest 2026-10-11
-  T1: 749 new, 749 stored, latest 2026-10-12
-  G1: 518 new, 518 stored, latest 2026-10-12
+  SP1: 380 new, 1218 stored, latest 2026-10-12
+  D1: 306 new, 963 stored, latest 2026-10-11
+  I1: 380 new, 1200 stored, latest 2026-10-12
+  F1: 306 new, 972 stored, latest 2026-10-11
+  N1: 306 new, 990 stored, latest 2026-10-11
+  P1: 306 new, 989 stored, latest 2026-10-12
+  B1: 312 new, 1007 stored, latest 2026-10-11
+  SC0: 228 new, 732 stored, latest 2026-10-11
+  T1: 342 new, 1091 stored, latest 2026-10-12
+  G1: 233 new, 751 stored, latest 2026-10-12
   AUT: 627 stored, latest 2026-10-11
   SWZ: 746 stored, latest 2026-10-11
   DNK: 637 stored, latest 2026-10-12
@@ -29,8 +29,6 @@ Europe (Champions League tab)
   POL: 1006 stored, latest 2026-10-12
   ROU: 1045 stored, latest 2026-10-12
   SWE: 808 stored, latest 2026-10-12
-  CL 2024: 189 matches (189 played)
-  CL 2025: 189 matches (189 played)
   CL 2026: 144 matches (18 played)
 Track record
 saved predictions for 82 upcoming matches (127 in the record)
