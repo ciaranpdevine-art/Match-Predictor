@@ -1,0 +1,16 @@
+Last run: 2026-10-13 14:13 UK time
+Results (season 2627)
+  E0: 10 new results, latest 2026-10-12
+  E1: 12 new results, latest 2026-10-11
+  E2: 12 new results, latest 2026-10-10
+  E3: 12 new results, latest 2026-10-10
+Fixtures
+  E0: 320 fixtures still to play
+  E1: skipped (HTTPError: HTTP Error 404: Not Found)
+  E2: 450 fixtures still to play
+  E3: 438 fixtures still to play
+Odds
+  odds for 13 upcoming matches
+Track record
+saved predictions for 82 upcoming matches (127 in the record)
+Built index.html (540 KB)
