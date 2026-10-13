@@ -19,7 +19,7 @@ DATA = ROOT  # every file sits in the top folder of the repo
 UK = ZoneInfo("Europe/London")
 LEAGUES = ["E0", "E1", "E2", "E3"]
 # fixturedownload.com feed names for each league; the season year is added on
-FEEDS = {"E0": "epl", "E1": "efl-championship", "E2": "efl-league-one", "E3": "efl-league-two"}
+FEEDS = {"E0": "epl", "E1": "championship", "E2": "efl-league-one", "E3": "efl-league-two"}
 
 # Names fixturedownload uses that don't reduce to football-data's names automatically
 ALIASES = {

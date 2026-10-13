@@ -2,7 +2,7 @@ name: Update and publish
 
 on:
   schedule:
-    - cron: "17 6 * * *"   # every morning at about 7am UK time
+    - cron: "17 6,12,18,22 * * *"   # four times a day (about 7am, 1pm, 7pm, 11pm UK time), so results arrive even if GitHub delays a run
   workflow_dispatch:        # adds a "Run workflow" button on the Actions tab
   push:
     branches: [main]        # republish whenever you upload changed files
