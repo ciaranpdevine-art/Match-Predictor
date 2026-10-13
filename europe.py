@@ -35,7 +35,8 @@ def run(fetch, log, root, season_year):
         added = 0
         for i, code in enumerate(codes):
             current = i == len(codes) - 1
-            if have and not current and any(r[0][:4] in (f"20{code[:2]}",) for r in have):
+            lo, hi = f"20{code[:2]}-07-01", f"20{code[2:]}-06-30"
+            if not current and sum(1 for r in have if lo <= r[0] <= hi) > 150:
                 continue  # past season already stored
             try:
                 text = fetch(f"https://www.football-data.co.uk/mmz4281/{code}/{lg}.csv")
