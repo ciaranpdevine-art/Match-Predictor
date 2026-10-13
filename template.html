@@ -126,6 +126,23 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .cl-card h3{margin:0;font-family:var(--display);font-size:1.6rem;line-height:1.1}
 .cl-two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
 .cl-two .big{font-size:3rem}
+#rs-table th,#rs-table td{padding-left:4px;padding-right:4px;text-align:center;font-size:.85rem}
+#rs-table th:first-child,#rs-table td:first-child{text-align:left}
+#rs-table th{white-space:normal;vertical-align:bottom}
+#rs-table tr.sel td{background:var(--accent-soft)}
+#rs-table tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
+#rs-table .ex{display:block;font-size:.68rem;color:var(--muted);font-weight:400}
+.rs-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:4px 0 6px}
+.rs-sum .k{font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.rs-sum .v{font-family:var(--mono);font-size:1.15rem}
+.rs-sum .e{font-size:.7rem;color:var(--muted)}
+.rs-list{list-style:none;margin:0;padding:0}
+.rs-list li{display:grid;grid-template-columns:1fr auto;gap:4px 8px;padding:8px 0;border-top:1px solid var(--line);font-size:.86rem}
+.rs-list .sc{font-family:var(--mono);font-weight:600}
+.rs-list .tags{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.rs-list .mp{font-size:.72rem;color:var(--muted);margin-left:auto}
+.tag{font-size:.68rem;font-weight:600;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.tag.y{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
 .lgtag{font-family:var(--mono);font-size:.68rem;padding:1px 5px;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
 .top-lg.best{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .lgview[hidden],#topview[hidden],#clview[hidden]{display:none}
@@ -283,6 +300,13 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
     <div id="out"></div>
   </section>
 
+  <section class="lgview" aria-labelledby="rs-h">
+    <h2 id="rs-h">Results by round</h2>
+    <p class="note" style="margin:0">How each round finished this season: how many games went over 2.5, had both teams score (BTTS), or had a winner plus BTTS or over (W+). The small grey figure under each is what the model expected, using its prediction for each game made only from results before it. Tap a round to see its games.</p>
+    <div class="panel tablewrap" style="padding:6px 10px"><table id="rs-table"></table></div>
+    <div id="rs-detail"></div>
+  </section>
+
   <section class="lgview" aria-labelledby="tr-h">
     <h2 id="tr-h">Team goal trends</h2>
     <p class="note" style="margin:0">How many of each team's last 10 league games (home and away) went over 2.5 or had both teams score. Teams with fewer than 10 show it as, say, 4/6. Tap a team to see its last 20 games.</p>
@@ -305,6 +329,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
 
 <script>
 const CLD = __CL__; // Champions League predictions from cl.js
+const ROUNDS = __ROUNDS__; // "home|away" -> round number, per league
 const TRACK = __TRACK__; // saved pre-match predictions: "lg|kickoff|home|away" -> [pOver,pBtts,pH,pD,pA,pHB,pAB,pHO,pAO]
 const BASE_ODDS = __ODDS__; // [div, local kick-off, home, away, over 2.5 odds, under 2.5 odds] from football-data fixtures.csv
 const BASE_FIX = { E0: __FIXTURES_E0__, E1: __FIXTURES_E1__, E2: __FIXTURES_E2__, E3: __FIXTURES_E3__ }; // [round, local kick-off, home, away]; PL from fixturedownload.com, Championship from openfootball
@@ -351,6 +376,42 @@ const MARKETS = {
   WB: { label: "Win + BTTS", val: p => Math.max(p.pHB, p.pAB), pick: (p, f) => `${p.pHB >= p.pAB ? f.h : f.a} win & BTTS`, sub: p => `Win ${pct(p.pHB >= p.pAB ? p.pH : p.pA)}% · BTTS ${pct(p.pBtts)}%`, desc: "see one side win with both teams scoring" },
   WO: { label: "Win + O2.5", val: p => Math.max(p.pHO, p.pAO), pick: (p, f) => `${p.pHO >= p.pAO ? f.h : f.a} win & over 2.5`, sub: p => `Win ${pct(p.pHO >= p.pAO ? p.pH : p.pA)}% · Over ${pct(p.pOver)}%`, desc: "see one side win with 3 or more goals" },
 };
+// ---------- Results by round (current league, this season) ----------
+const RES_SEL = {};
+function renderResults(){
+  const el = $("rs-table"); if (!el) return;
+  const rmap = (ROUNDS && ROUNDS[LG]) || {};
+  const last = matches[matches.length-1].t, ly = new Date(last);
+  const seasonStart = Date.parse(`${ly.getMonth() >= 6 ? ly.getFullYear() : ly.getFullYear()-1}-07-01`);
+  const games = matches.filter(m => m.t >= seasonStart && rmap[m.h+"|"+m.a] != null).map(m => {
+    const p = predict(matches, m.h, m.a, new Date(m.t)), tot = m.hg + m.ag, both = m.hg > 0 && m.ag > 0, win = m.hg !== m.ag;
+    return { m, r: rmap[m.h+"|"+m.a], p, over: tot >= 3, btts: both, wb: win && both, wo: win && tot >= 3 };
+  });
+  if (!games.length) { el.innerHTML = `<tbody><tr><td class="note">Round numbers arrive with the next daily update.</td></tr></tbody>`; $("rs-detail").innerHTML = ""; return; }
+  const rounds = [...new Set(games.map(g=>g.r))].sort((a,b)=>a-b);
+  if (!rounds.includes(RES_SEL[LG])) RES_SEL[LG] = rounds[rounds.length-1];
+  const sum = gs => ({ n: gs.length, o: gs.filter(g=>g.over).length, b: gs.filter(g=>g.btts).length, wb: gs.filter(g=>g.wb).length, wo: gs.filter(g=>g.wo).length,
+    eo: gs.reduce((s,g)=>s+(g.p?g.p.pOver:0),0), eb: gs.reduce((s,g)=>s+(g.p?g.p.pBtts:0),0), ewb: gs.reduce((s,g)=>s+(g.p?g.p.pHB+g.p.pAB:0),0), ewo: gs.reduce((s,g)=>s+(g.p?g.p.pHO+g.p.pAO:0),0) });
+  const cell = (a, e) => `${a}<span class="ex">${e.toFixed(1)}</span>`;
+  el.innerHTML = `<thead><tr><th>Rd</th><th>Pld</th><th>Over</th><th>BTTS</th><th>W+<br>BTTS</th><th>W+<br>Over</th></tr></thead><tbody>` +
+    rounds.slice().reverse().map(r => { const s = sum(games.filter(g=>g.r===r));
+      return `<tr class="click${r===RES_SEL[LG]?" sel":""}" data-r="${r}" tabindex="0"><td>${r}</td><td class="num">${s.n}</td><td class="num">${cell(s.o,s.eo)}</td><td class="num">${cell(s.b,s.eb)}</td><td class="num">${cell(s.wb,s.ewb)}</td><td class="num">${cell(s.wo,s.ewo)}</td></tr>`; }).join("") +
+    `</tbody><tfoot>${(()=>{ const s = sum(games); const pc = x => Math.round(x/s.n*100)+"%";
+      return `<tr><td>Season</td><td class="num">${s.n}</td><td class="num">${pc(s.o)}<span class="ex">${pc(s.eo)}</span></td><td class="num">${pc(s.b)}<span class="ex">${pc(s.eb)}</span></td><td class="num">${pc(s.wb)}<span class="ex">${pc(s.ewb)}</span></td><td class="num">${pc(s.wo)}<span class="ex">${pc(s.ewo)}</span></td></tr>`; })()}</tfoot>`;
+  el.querySelectorAll("tr.click").forEach(tr => { const go = () => { RES_SEL[LG] = +tr.dataset.r; renderResults(); };
+    tr.addEventListener("click", go); tr.addEventListener("keydown", e => { if (e.key === "Enter") go(); }); });
+  // chosen round in detail
+  const gs = games.filter(g=>g.r===RES_SEL[LG]).sort((a,b)=>a.m.t-b.m.t || a.m.h.localeCompare(b.m.h)), s = sum(gs);
+  const tile = (k, a, e) => `<div><div class="k">${k}</div><div class="v">${a}/${s.n}</div><div class="e">model ${e.toFixed(1)}</div></div>`;
+  const tag = (on, lab) => `<span class="tag${on?" y":""}">${on?"✓ ":""}${lab}</span>`;
+  $("rs-detail").innerHTML = `<div class="panel" style="margin-top:4px">
+    <h3 style="margin:0 0 8px;font-family:var(--display);font-size:1.5rem">Round ${RES_SEL[LG]}</h3>
+    <div class="rs-sum">${tile("Over 2.5", s.o, s.eo)}${tile("BTTS", s.b, s.eb)}${tile("Win + BTTS", s.wb, s.ewb)}${tile("Win + Over", s.wo, s.ewo)}</div>
+    <ul class="rs-list">${gs.map(g => `<li><span>${g.m.h} v ${g.m.a}</span><span class="sc">${g.m.hg}-${g.m.ag}</span>
+      <span class="tags">${tag(g.over,"Over")}${tag(g.btts,"BTTS")}${tag(g.wb,"Win+BTTS")}${tag(g.wo,"Win+Over")}${g.p?`<span class="mp">model: over ${pct(g.p.pOver)}% · BTTS ${pct(g.p.pBtts)}%</span>`:""}</span></li>`).join("")}</ul>
+  </div>`;
+}
+
 // ---------- Champions League tab ----------
 let CL_ROUND = null, CL_SEL = null;
 let CL_SORT = ["ko","pOver","pBtts"].includes(LS0("clSort")) ? LS0("clSort") : "ko";
@@ -913,12 +974,12 @@ function setLeague(lg, quiet){
   for (const k in LEAGUES) $("lg-"+k).setAttribute("aria-pressed", String(k===lg));
   $("lg-TOP").setAttribute("aria-pressed", "false"); $("lg-UCL").setAttribute("aria-pressed", "false");
   $("lgname").textContent = LEAGUES[lg].name; $("test").textContent = LEAGUES[lg].test;
-  if (!quiet) { build(); fillPickers(); status(); render(); renderFixtures(); renderTrends(); }
+  if (!quiet) { build(); fillPickers(); status(); render(); renderFixtures(); renderTrends(); renderResults(); }
 }
 
 function refresh(){
   const h=$("home").value, a=$("away").value;
-  build(); fillPickers(h,a); status(); render(); renderFixtures(); renderTrends();
+  build(); fillPickers(h,a); status(); render(); renderFixtures(); renderTrends(); renderResults();
   if (VIEW === "top") renderTop();
 }
 

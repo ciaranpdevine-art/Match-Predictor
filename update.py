@@ -138,15 +138,16 @@ def map_name(n, names):
 def update_fixtures(lg, text):
     feed = json.loads(text)
     names = team_names(lg)
-    out, unknown = [], set()
+    out, unknown, rounds = [], set(), {}
     for m in feed:
-        if m.get("HomeTeamScore") is not None:
-            continue  # already played
         h, a = map_name(m["HomeTeam"], names), map_name(m["AwayTeam"], names)
         if not h: unknown.add(m["HomeTeam"])
         if not a: unknown.add(m["AwayTeam"])
         if not h or not a:
             continue
+        rounds[f"{h}|{a}"] = m["RoundNumber"]  # each pairing happens once a season, so this finds a result's round
+        if m.get("HomeTeamScore") is not None:
+            continue  # already played
         utc = datetime.strptime(m["DateUtc"].replace("Z", "").strip(), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
         out.append([m["RoundNumber"], utc.astimezone(UK).strftime("%Y-%m-%dT%H:%M"), h, a])
     if unknown:
@@ -157,6 +158,7 @@ def update_fixtures(lg, text):
         return
     out.sort(key=lambda f: (f[1], f[2]))
     save(f"fixtures_{lg}.json", out)
+    save(f"rounds_{lg}.json", rounds)
     log(f"  {lg}: {len(out)} fixtures still to play")
 
 
@@ -211,7 +213,8 @@ def build():
     parts = {"__MODEL__": open(os.path.join(ROOT, "model.js"), encoding="utf-8").read(),
              "__ODDS__": json.dumps(load("odds.json", []), separators=(",", ":")),
              "__TRACK__": json.dumps(load("track.json", {}), separators=(",", ":")),
-             "__CL__": json.dumps(load("cl.json", {}), separators=(",", ":"))}
+             "__CL__": json.dumps(load("cl.json", {}), separators=(",", ":")),
+             "__ROUNDS__": json.dumps({lg: load(f"rounds_{lg}.json", {}) for lg in LEAGUES}, separators=(",", ":"))}
     for lg in LEAGUES:
         parts[f"__RESULTS_{lg}__"] = json.dumps(load(f"results_{lg}.json", []), separators=(",", ":"))
         parts[f"__FIXTURES_{lg}__"] = json.dumps(load(f"fixtures_{lg}.json", []), separators=(",", ":"))
