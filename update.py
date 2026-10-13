@@ -35,8 +35,11 @@ SUFFIXES = [" City", " United", " Town", " Rovers", " Albion", " Athletic", " Wa
             " County", " Argyle", " Stanley", " Alexandra", " Hotspur", " FC", " AFC"]
 
 
+LOG = []
 def log(*a):
-    print(*a, flush=True)
+    line = " ".join(str(x) for x in a)
+    LOG.append(line)
+    print(line, flush=True)
 
 
 def fetch(url):
@@ -215,7 +218,7 @@ def step(label, fn):
     try:
         fn()
     except Exception as e:  # keep going: one bad download shouldn't stop the rest
-        log(f"  {label}: skipped ({e})")
+        log(f"  {label}: skipped ({type(e).__name__}: {e})")
 
 
 def main():
@@ -240,6 +243,9 @@ def main():
         log("Track record")
         step("track", save_predictions)
     build()
+    # keep a copy of this run's log in the repo, so problems can be diagnosed without GitHub's log viewer
+    with open(os.path.join(ROOT, "update_log.txt"), "w", encoding="utf-8") as f:
+        f.write(f"Last run: {datetime.now(UK):%Y-%m-%d %H:%M} UK time\n" + "\n".join(LOG) + "\n")
 
 
 if __name__ == "__main__":
