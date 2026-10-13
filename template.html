@@ -115,6 +115,8 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .exp{font-family:var(--body);font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;vertical-align:middle;padding:3px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--warn)}
 #cl-table td .lgs{display:block;font-size:.72rem;color:var(--muted)}
 #cl-table td:first-child{white-space:normal;min-width:0}
+#cl-sort{display:grid;grid-template-columns:repeat(3,1fr);width:100%;max-width:420px;margin:0}
+#cl-sort button{padding:9px 4px;text-align:center;font-size:.85rem}
 #cl-table td .lgs.res{color:var(--fg);margin-top:2px}
 #cl-table th,#cl-table td{padding-left:5px;padding-right:5px}
 .cl-card h3.sub{font-family:var(--body);font-size:.8rem;line-height:1.5;margin:24px 0 8px}
@@ -248,6 +250,9 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
     <h2 id="cl-h">Champions League <span class="exp">Experimental</span></h2>
     <p class="note" style="margin:0">Each club is rated from its own domestic league, then adjusted for how strong that league is, using the last two seasons of Champions League results. Over 2.5 and result predictions beat a simple average when tested on those seasons; BTTS only just did, so treat BTTS here with extra caution.</p>
     <div class="tools"><label for="cl-round" style="flex-direction:row;align-items:center;gap:10px">Round<select id="cl-round" style="width:auto"></select></label></div>
+    <div class="seg" id="cl-sort" role="group" aria-label="Sort matches by">
+      <button type="button" data-s="ko">Kick-off</button><button type="button" data-s="pOver">Over 2.5 ↓</button><button type="button" data-s="pBtts">BTTS ↓</button>
+    </div>
     <div class="panel tablewrap" style="padding:6px 10px"><table id="cl-table"></table></div>
     <div id="cl-detail"></div>
   </section>
@@ -348,6 +353,7 @@ const MARKETS = {
 };
 // ---------- Champions League tab ----------
 let CL_ROUND = null, CL_SEL = null;
+let CL_SORT = ["ko","pOver","pBtts"].includes(LS0("clSort")) ? LS0("clSort") : "ko";
 function renderCL(){
   const ms = (CLD && CLD.matches) || [];
   if (!ms.length) { $("cl-table").innerHTML = `<tbody><tr><td class="note">No Champions League data yet. It arrives with the next daily update.</td></tr></tbody>`; return; }
@@ -359,6 +365,12 @@ function renderCL(){
   $("cl-round").innerHTML = rounds.map(r=>{ const f = ms.find(m=>m.round===r); return `<option value="${r}"${r===CL_ROUND?" selected":""}>${rlab(r)} · ${fmtShort(Date.parse(f.ko))}</option>`; }).join("");
   $("cl-round").onchange = e => { CL_ROUND = +e.target.value; CL_SEL = null; renderCL(); };
   const list = ms.filter(m=>m.round===CL_ROUND);
+  // highest to lowest by the chosen market; kick-off order otherwise (played games keep their place in the sort)
+  if (CL_SORT !== "ko") list.sort((x,y)=>y.p[CL_SORT]-x.p[CL_SORT] || x.ko.localeCompare(y.ko));
+  document.querySelectorAll("#cl-sort button").forEach(b=>{
+    b.setAttribute("aria-pressed", String(b.dataset.s===CL_SORT));
+    b.onclick = ()=>{ CL_SORT = b.dataset.s; LS.set("clSort", CL_SORT); renderCL(); };
+  });
   if (!CL_SEL || !list.includes(CL_SEL)) CL_SEL = list.find(m=>m.hg==null && Date.parse(m.ko) > cutoff) || list[0];
   const chip = (p, f) => { const [t, c] = f(p); return `<span class="verdict ${c}" title="${t}">${pct(p)}%</span>`; };
   $("cl-table").innerHTML = `<thead><tr><th>Match</th><th class="r">Over 2.5</th><th class="r">BTTS</th></tr></thead><tbody>` +
