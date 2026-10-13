@@ -41,8 +41,9 @@ h2{font-size:1.6rem}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
 .seg button+button{border-left:1px solid var(--line)}
 .seg .s{display:none}
+@media (max-width:420px){header .seg button{font-size:.78rem;padding:10px 2px}}
 @media (max-width:620px){
-  .seg{display:grid;grid-template-columns:repeat(5,1fr);width:100%}
+  .seg{display:grid;grid-template-columns:repeat(6,1fr);width:100%}
   .seg button{padding:10px 4px;font-size:.85rem;white-space:nowrap;text-align:center}
   .seg .f{display:none} .seg .s{display:inline}
 }
@@ -111,6 +112,18 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .trk li{display:grid;grid-template-columns:1.4em 1fr auto auto;gap:8px;align-items:center}
 .trk .tm{min-width:0}
 .tk{font-weight:700;text-align:center} .tk.hit{color:var(--accent)} .tk.miss{color:var(--down)} .tk.wait{color:var(--muted)}
+.exp{font-family:var(--body);font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;vertical-align:middle;padding:3px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--warn)}
+#cl-table td .lgs{display:block;font-size:.72rem;color:var(--muted)}
+#cl-table td:first-child{white-space:normal;min-width:0}
+#cl-table td .lgs.res{color:var(--fg);margin-top:2px}
+#cl-table th,#cl-table td{padding-left:5px;padding-right:5px}
+.cl-card h3.sub{font-family:var(--body);font-size:.8rem;line-height:1.5;margin:24px 0 8px}
+#cl-table tr.sel td{background:var(--accent-soft)}
+#cl-table tr.done td{color:var(--muted)}
+.cl-card{margin-top:4px}
+.cl-card h3{margin:0;font-family:var(--display);font-size:1.6rem;line-height:1.1}
+.cl-two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.cl-two .big{font-size:3rem}
 .lgtag{font-family:var(--mono);font-size:.68rem;padding:1px 5px;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
 .top-lg.best{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .lgview[hidden],#topview[hidden]{display:none}
@@ -226,9 +239,18 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
       <button type="button" data-lg="E1" id="lg-E1" aria-label="Championship"><span class="f">Championship</span><span class="s">Champ</span></button>
       <button type="button" data-lg="E2" id="lg-E2" aria-label="League One"><span class="f">League One</span><span class="s">Lg 1</span></button>
       <button type="button" data-lg="E3" id="lg-E3" aria-label="League Two"><span class="f">League Two</span><span class="s">Lg 2</span></button>
+      <button type="button" data-lg="UCL" id="lg-UCL" aria-label="Champions League"><span class="f">Champions League</span><span class="s">UCL</span></button>
     </div>
     <div class="status" id="status"></div>
   </header>
+
+  <section id="clview" aria-labelledby="cl-h" hidden>
+    <h2 id="cl-h">Champions League <span class="exp">Experimental</span></h2>
+    <p class="note" style="margin:0">Each club is rated from its own domestic league, then adjusted for how strong that league is, using the last two seasons of Champions League results. Over 2.5 and result predictions beat a simple average when tested on those seasons; BTTS only just did, so treat BTTS here with extra caution.</p>
+    <div class="tools"><label for="cl-round" style="flex-direction:row;align-items:center;gap:10px">Round<select id="cl-round" style="width:auto"></select></label></div>
+    <div class="panel tablewrap" style="padding:6px 10px"><table id="cl-table"></table></div>
+    <div id="cl-detail"></div>
+  </section>
 
   <section id="topview" aria-labelledby="top-h" hidden>
     <h2 id="top-h">Top picks</h2>
@@ -277,6 +299,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
 </div>
 
 <script>
+const CLD = __CL__; // Champions League predictions from cl.js
 const TRACK = __TRACK__; // saved pre-match predictions: "lg|kickoff|home|away" -> [pOver,pBtts,pH,pD,pA,pHB,pAB,pHO,pAO]
 const BASE_ODDS = __ODDS__; // [div, local kick-off, home, away, over 2.5 odds, under 2.5 odds] from football-data fixtures.csv
 const BASE_FIX = { E0: __FIXTURES_E0__, E1: __FIXTURES_E1__, E2: __FIXTURES_E2__, E3: __FIXTURES_E3__ }; // [round, local kick-off, home, away]; PL from fixturedownload.com, Championship from openfootball
@@ -323,6 +346,66 @@ const MARKETS = {
   WB: { label: "Win + BTTS", val: p => Math.max(p.pHB, p.pAB), pick: (p, f) => `${p.pHB >= p.pAB ? f.h : f.a} win & BTTS`, sub: p => `Win ${pct(p.pHB >= p.pAB ? p.pH : p.pA)}% · BTTS ${pct(p.pBtts)}%`, desc: "see one side win with both teams scoring" },
   WO: { label: "Win + O2.5", val: p => Math.max(p.pHO, p.pAO), pick: (p, f) => `${p.pHO >= p.pAO ? f.h : f.a} win & over 2.5`, sub: p => `Win ${pct(p.pHO >= p.pAO ? p.pH : p.pA)}% · Over ${pct(p.pOver)}%`, desc: "see one side win with 3 or more goals" },
 };
+// ---------- Champions League tab ----------
+let CL_ROUND = null, CL_SEL = null;
+function renderCL(){
+  const ms = (CLD && CLD.matches) || [];
+  if (!ms.length) { $("cl-table").innerHTML = `<tbody><tr><td class="note">No Champions League data yet. It arrives with the next daily update.</td></tr></tbody>`; return; }
+  const cutoff = Date.now() - 2.5*3600000;
+  const rounds = [...new Set(ms.map(m=>m.round))].sort((a,b)=>a-b);
+  const next = ms.find(m => m.hg == null && Date.parse(m.ko) > cutoff);
+  if (CL_ROUND == null || !rounds.includes(CL_ROUND)) CL_ROUND = next ? next.round : rounds[rounds.length-1];
+  const rlab = r => r <= 8 ? `Matchday ${r}` : `Round ${r}`;
+  $("cl-round").innerHTML = rounds.map(r=>{ const f = ms.find(m=>m.round===r); return `<option value="${r}"${r===CL_ROUND?" selected":""}>${rlab(r)} · ${fmtShort(Date.parse(f.ko))}</option>`; }).join("");
+  $("cl-round").onchange = e => { CL_ROUND = +e.target.value; CL_SEL = null; renderCL(); };
+  const list = ms.filter(m=>m.round===CL_ROUND);
+  if (!CL_SEL || !list.includes(CL_SEL)) CL_SEL = list.find(m=>m.hg==null && Date.parse(m.ko) > cutoff) || list[0];
+  const chip = (p, f) => { const [t, c] = f(p); return `<span class="verdict ${c}" title="${t}">${pct(p)}%</span>`; };
+  $("cl-table").innerHTML = `<thead><tr><th>Match</th><th class="r">Over 2.5</th><th class="r">BTTS</th></tr></thead><tbody>` +
+    list.map((m,i)=>{
+      const p = m.p, done = m.hg != null, best = Math.max(p.pH, p.pD, p.pA);
+      const res = done ? `Final score <b class="num">${m.hg}-${m.ag}</b>` : `Most likely: ${best===p.pH ? m.h+" win" : best===p.pA ? m.a+" win" : "draw"} <b class="num">${pct(best)}%</b>`;
+      return `<tr class="click${m===CL_SEL?" sel":""}${done?" done":""}" data-i="${i}" tabindex="0"><td>${m.h} v ${m.a}<span class="lgs">${fmtShort(Date.parse(m.ko))} · ${m.ko.slice(11,16)} · ${m.lh} v ${m.la}${m.thinH||m.thinA?" · limited data":""}</span><span class="lgs res">${res}</span></td>
+        <td class="r">${chip(p.pOver, verdict)}</td><td class="r">${chip(p.pBtts, bttsVerdict)}</td></tr>`;
+    }).join("") + `</tbody>`;
+  $("cl-table").querySelectorAll("tr.click").forEach(tr=>{
+    const go = ()=>{ CL_SEL = list[+tr.dataset.i]; renderCL(); $("cl-detail").scrollIntoView({behavior:"smooth", block:"start"}); };
+    tr.addEventListener("click", go); tr.addEventListener("keydown", e=>{ if(e.key==="Enter") go(); });
+  });
+  renderCLDetail(CL_SEL);
+}
+function renderCLDetail(m){
+  if (!m) { $("cl-detail").innerHTML = ""; return; }
+  const p = m.p, [vt, vc] = verdict(p.pOver), [bt, bc] = bttsVerdict(p.pBtts), best = Math.max(p.pH, p.pD, p.pA);
+  const d = p.dist, cols = [0,1,2,3,4,5].map(i=>({lab:String(i), v:d[i]})).concat([{lab:"6+", v:Math.max(0, 1 - d.slice(0,6).reduce((a,b)=>a+b,0))}]);
+  const maxC = Math.max(...cols.map(c=>c.v));
+  const seg = (v, cls, lab) => `<div class="rs ${cls}${v===best?" top":""}"><div class="rv num">${pct(v)}%</div><div class="rl">${lab}</div></div>`;
+  $("cl-detail").innerHTML = `<div class="panel cl-card">
+    <h3>${m.h} v ${m.a}</h3>
+    <div class="note">${fmtShort(Date.parse(m.ko))} · ${m.ko.slice(11,16)} · ${m.lh} v ${m.la}${m.hg!=null ? ` · <b>Final score ${m.hg}-${m.ag}</b>` : ""}</div>
+    ${m.thinH||m.thinA ? `<p class="note warn" style="margin:8px 0 0">${[m.thinH&&m.h, m.thinA&&m.a].filter(Boolean).join(" and ")} ${m.thinH&&m.thinA?"play":"plays"} in a league we don't have data for, so ${m.thinH&&m.thinA?"they're":"it's"} treated as an average side from a weaker league. Take this one with a pinch of salt.</p>` : ""}
+    <div class="cl-two">
+      <div><div class="big num">${pct(p.pOver)}<small>%</small></div><div style="font-weight:600">chance of 3+ goals</div><span class="verdict ${vc}">${vt}</span></div>
+      <div><div class="big num">${pct(p.pBtts)}<small>%</small></div><div style="font-weight:600">chance of BTTS</div><span class="verdict ${bc}">${bt}</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">${m.h} xG</div><div class="v">${p.xh.toFixed(2)}</div></div>
+      <div class="stat"><div class="k">${m.a} xG</div><div class="v">${p.xa.toFixed(2)}</div></div>
+    </div>
+    <div class="dist" aria-label="Chance of each total number of goals">${cols.map((c,i)=>`<div class="col"><span class="p">${pct(c.v)}%</span><div class="bar${i>=3?" o":""}" style="height:${(c.v/maxC*80).toFixed(0)}%"></div></div>`).join("")}</div>
+    <div class="dist-x">${cols.map(c=>`<span>${c.lab}</span>`).join("")}</div>
+    <p class="note" style="margin:6px 0 0">Total goals in the match. Green bars are 3 or more.</p>
+    <h3 class="sub">Result</h3>
+    <div class="rbar"><i class="h" style="width:${p.pH*100}%"></i><i class="d" style="width:${p.pD*100}%"></i><i class="a" style="width:${p.pA*100}%"></i></div>
+    <div class="rsegs">${seg(p.pH,"h",m.h+" win")}${seg(p.pD,"d","Draw")}${seg(p.pA,"a",m.a+" win")}</div>
+    <div class="tablewrap"><table class="combo">
+      <thead><tr><th></th><th class="r">Win &amp;<br>BTTS</th><th class="r">Win &amp;<br>Over 2.5</th></tr></thead>
+      <tbody><tr><td>${m.h}</td><td class="r num">${pct(p.pHB)}%</td><td class="r num">${pct(p.pHO)}%</td></tr>
+      <tr><td>${m.a}</td><td class="r num">${pct(p.pAB)}%</td><td class="r num">${pct(p.pAO)}%</td></tr></tbody>
+    </table></div>
+  </div>`;
+}
+
 // Track record: each day's top picks (saved before kick-off) checked against results
 const TRACK_EVAL = {
   pOver: a => ({ v: a[0], label: "Over 2.5", hit: (h, g) => h + g >= 3 }),
@@ -797,22 +880,26 @@ async function loadFixtures(file){
 let VIEW = LS0("view") || "league";
 function setView(v){
   VIEW = v; LS.set("view", v);
-  const top = v === "top";
+  const top = v === "top", cl = v === "cl", other = top || cl;
   $("topview").hidden = !top;
-  document.querySelectorAll(".lgview").forEach(s=>s.hidden = top);
-  $("status").hidden = top;
-  $("test").hidden = top;
+  $("clview").hidden = !cl;
+  document.querySelectorAll(".lgview").forEach(s=>s.hidden = other);
+  $("status").hidden = other;
+  $("test").hidden = other;
   $("lg-TOP").setAttribute("aria-pressed", String(top));
-  for (const k in LEAGUES) $("lg-"+k).setAttribute("aria-pressed", String(!top && k===LG));
-  $("lgname").textContent = top ? "All leagues" : LEAGUES[LG].name;
+  $("lg-UCL").setAttribute("aria-pressed", String(cl));
+  for (const k in LEAGUES) $("lg-"+k).setAttribute("aria-pressed", String(!other && k===LG));
+  $("lgname").textContent = top ? "All leagues" : cl ? "Champions League" : LEAGUES[LG].name;
   if (top) renderTop();
+  if (cl) renderCL();
 }
 function setLeague(lg, quiet){
   if (lg === "TOP") { setView("top"); return; }
+  if (lg === "UCL") { setView("cl"); return; }
   LG = lg; LS.set("league", lg);
   if (VIEW !== "league") setView("league");
   for (const k in LEAGUES) $("lg-"+k).setAttribute("aria-pressed", String(k===lg));
-  $("lg-TOP").setAttribute("aria-pressed", "false");
+  $("lg-TOP").setAttribute("aria-pressed", "false"); $("lg-UCL").setAttribute("aria-pressed", "false");
   $("lgname").textContent = LEAGUES[lg].name; $("test").textContent = LEAGUES[lg].test;
   if (!quiet) { build(); fillPickers(); status(); render(); renderFixtures(); renderTrends(); }
 }
@@ -831,9 +918,11 @@ for (const k in LEAGUES) LS.del("extraRows_"+k); LS.del("fixtures"); LS.del("fix
 
 document.querySelectorAll("header .seg button").forEach(b=>b.addEventListener("click",()=>setLeague(b.dataset.lg)));
 if (!LEAGUES[LG]) LG="E0";
+const START_VIEW = VIEW; // remember the saved tab before the league setup below resets it
 setLeague(LG, true);
 refresh();
-if (VIEW === "top") setView("top");
+if (START_VIEW === "top") setView("top");
+if (START_VIEW === "cl") setView("cl");
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
 }

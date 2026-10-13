@@ -184,6 +184,16 @@ def update_odds(text):
 
 
 # ---------- track record ----------
+def run_node(script):
+    node = shutil.which("node")
+    if not node:
+        log("  node not found, skipped")
+        return
+    out = subprocess.run([node, os.path.join(ROOT, script)], capture_output=True, text=True,
+                         env={**os.environ, "TZ": "Europe/London"}, timeout=600)
+    log(out.stdout.strip() or out.stderr.strip()[-500:])
+
+
 def save_predictions():
     """Save today's predictions (via the same JavaScript model the app uses) so they can be graded later."""
     node = shutil.which("node")
@@ -200,7 +210,8 @@ def build():
     t = open(os.path.join(ROOT, "template.html"), encoding="utf-8").read()
     parts = {"__MODEL__": open(os.path.join(ROOT, "model.js"), encoding="utf-8").read(),
              "__ODDS__": json.dumps(load("odds.json", []), separators=(",", ":")),
-             "__TRACK__": json.dumps(load("track.json", {}), separators=(",", ":"))}
+             "__TRACK__": json.dumps(load("track.json", {}), separators=(",", ":")),
+             "__CL__": json.dumps(load("cl.json", {}), separators=(",", ":"))}
     for lg in LEAGUES:
         parts[f"__RESULTS_{lg}__"] = json.dumps(load(f"results_{lg}.json", []), separators=(",", ":"))
         parts[f"__FIXTURES_{lg}__"] = json.dumps(load(f"fixtures_{lg}.json", []), separators=(",", ":"))
@@ -244,6 +255,7 @@ def main():
             log("Europe (Champions League tab)")
             import europe
             step("europe", lambda: europe.run(fetch, log, ROOT, year))
+            step("cl", lambda: run_node("cl.js"))
         log("Track record")
         step("track", save_predictions)
     build()
