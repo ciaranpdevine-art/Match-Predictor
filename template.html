@@ -143,6 +143,9 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .rs-list .mp{font-size:.72rem;color:var(--muted);margin-left:auto}
 .tag{font-size:.68rem;font-weight:600;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
 .tag.y{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.stepper{display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--muted)}
+.stepper button{width:38px;height:38px;padding:0;font-size:1.2rem;line-height:1}
+.stepper input{width:3.2em;text-align:center;font:inherit;font-family:var(--mono);font-size:1rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 4px}
 .lgtag{font-family:var(--mono);font-size:.68rem;padding:1px 5px;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
 .top-lg.best{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .lgview[hidden],#topview[hidden],#clview[hidden]{display:none}
@@ -504,7 +507,7 @@ function renderTrack(per, M){
   let n = 0, hits = 0, exp = 0, opened = false;
   const anyDone = days.some(d => byDay[d].some(r => r.status !== "wait"));
   const dayRows = days.map(day => {
-    const top = byDay[day].sort((x,y)=>y.v-x.v).slice(0, BEST_N);
+    const top = byDay[day].sort((x,y)=>y.v-x.v).slice(0, TRACK_N);
     const done = top.filter(r=>r.status!=="wait");
     done.forEach(r=>{ n++; exp += r.v; if (r.status==="hit") hits++; });
     const dh = done.filter(r=>r.status==="hit").length, de = done.reduce((s,r)=>s+r.v,0);
@@ -520,14 +523,16 @@ function renderTrack(per, M){
   }).join("");
   const sum = n ? `<div class="tsum"><div><div class="k">Landed</div><div class="v num">${hits}/${n}</div></div><div><div class="k">Hit rate</div><div class="v num">${Math.round(hits/n*100)}%</div></div><div><div class="k">Model expected</div><div class="v num">${Math.round(exp/n*100)}%</div></div></div>` : `<p class="note" style="margin:0">No results to check yet. Picks are graded the morning after each match.</p>`;
   return `<div class="panel top-lg">
-    <div><h2 style="margin:0">Track record</h2><span class="note">Each day's top ${BEST_N} ${M.label} picks across all leagues, saved before kick-off, checked against the results.</span></div>
+    <div><h2 style="margin:0">Track record</h2><span class="note">Each day's top ${TRACK_N} ${M.label} picks across all leagues, saved before kick-off, checked against the results.</span></div>
     ${sum}
     <div class="tdays">${dayRows || ""}</div>
     <p class="note" style="margin:0">Record started 10 Oct 2026. If the hit rate stays close to or above what the model expected over a few weeks, its percentages can be trusted.</p>
   </div>`;
 }
 const LG_SHORT = { E0: "Prem", E1: "Champ", E2: "Lg 1", E3: "Lg 2" };
-const BEST_N = 6;
+const TRACK_N = 6; // the track record always grades the top 6, so its history stays comparable
+const clampN = n => Math.max(1, Math.min(30, Math.round(+n) || 6));
+let BEST_N = clampN(LS0("bestN") || 6);
 let TOP_SEL = new Set(); // chosen days (YYYY-MM-DD); empty = all days
 let TOP_TIMES = new Set(); // chosen kick-off times (HH:MM); empty = all times
 function renderTop(){
@@ -595,9 +600,17 @@ function renderTop(){
   const trackHtml = renderTrack(per, M);
   const best = all.sort((x,y)=>M.val(y.p)-M.val(x.p)).slice(0, BEST_N);
   el.innerHTML = `<div class="panel top-lg best">
-      <div><h2 style="margin:0">Best across all leagues</h2><span class="note">The ${BEST_N} strongest ${M.label} picks from all four leagues${filterLab}</span></div>
+      <div><h2 style="margin:0">Best across all leagues</h2><span class="note">The ${best.length} strongest ${M.label} picks from all four leagues${filterLab}</span></div>
+      <div class="stepper" role="group" aria-label="How many picks to show"><span>Show</span>
+        <button type="button" id="bn-down" aria-label="Show fewer">−</button>
+        <input id="bn" type="number" inputmode="numeric" min="1" max="30" value="${BEST_N}" aria-label="Number of picks">
+        <button type="button" id="bn-up" aria-label="Show more">+</button><span>picks</span></div>
       <div>${best.length ? best.map((r,i)=>pickRow(r,i,true)).join("") : `<p class="note">No matches on the chosen days and times.</p>`}</div>
     </div>` + cards + trackHtml;
+  const setN = n => { BEST_N = clampN(n); LS.set("bestN", BEST_N); renderTop(); };
+  $("bn-down").onclick = () => setN(BEST_N - 1);
+  $("bn-up").onclick = () => setN(BEST_N + 1);
+  $("bn").onchange = e => setN(e.target.value);
   document.querySelectorAll("#top-metric button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.m===TOP_METRIC)));
   $("top-note").textContent = `Matches most likely to ${M.desc}, over the next ${TOP_DAYS} days. Pick days and kick-off times to narrow it down. Tap a match to open its full prediction.`;
   el.querySelectorAll(".pick").forEach(row=>{
