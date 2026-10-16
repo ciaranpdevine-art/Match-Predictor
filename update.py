@@ -180,7 +180,14 @@ def update_odds(text):
         if not d or o <= 1 or u <= 1:
             continue
         t = (r.get("Time") or "15:00").strip()[:5]
-        out.append([lg, f"{d.isoformat()}T{t}", r["HomeTeam"].strip(), r["AwayTeam"].strip(), o, u])
+        res = []  # match result odds: home, draw, away (None if missing)
+        for k in ("H", "D", "A"):
+            try:
+                v = float(r.get("Avg" + k) or r.get("B365" + k))
+                res.append(v if v > 1 else None)
+            except (TypeError, ValueError):
+                res.append(None)
+        out.append([lg, f"{d.isoformat()}T{t}", r["HomeTeam"].strip(), r["AwayTeam"].strip(), o, u, *res])
     save("odds.json", out)
     log(f"  odds for {len(out)} upcoming matches")
 
