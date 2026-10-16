@@ -43,7 +43,7 @@ h2{font-size:1.6rem}
 .seg .s{display:none}
 @media (max-width:420px){header .seg button{font-size:.78rem;padding:10px 2px}}
 @media (max-width:620px){
-  .seg{display:grid;grid-template-columns:repeat(6,1fr);width:100%}
+  .seg{display:grid;grid-template-columns:repeat(7,1fr);width:100%}
   .seg button{padding:10px 4px;font-size:.85rem;white-space:nowrap;text-align:center}
   .seg .f{display:none} .seg .s{display:inline}
 }
@@ -158,7 +158,7 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .bb .est{font-size:.68rem;color:var(--muted);font-family:var(--body)}
 .lgtag{font-family:var(--mono);font-size:.68rem;padding:1px 5px;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
 .top-lg.best{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
-.lgview[hidden],#topview[hidden],#clview[hidden]{display:none}
+.lgview[hidden],#topview[hidden],#clview[hidden],#bbview[hidden]{display:none}
 @media (max-width:520px){.top-cols{grid-template-columns:1fr}}
 #trends th{white-space:normal;vertical-align:bottom}
 #trends th,#trends td{padding-left:6px;padding-right:6px}
@@ -267,6 +267,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
     <h1>Match Predictor</h1>
     <div class="seg" role="group" aria-label="League">
       <button type="button" data-lg="TOP" id="lg-TOP" aria-label="Top picks"><span class="f">★ Top picks</span><span class="s">★ Top</span></button>
+      <button type="button" data-lg="BB" id="lg-BB" aria-label="Bet builder"><span class="f">Bet builder</span><span class="s">Bet</span></button>
       <button type="button" data-lg="E0" id="lg-E0" aria-label="Premier League"><span class="f">Premier League</span><span class="s">Prem</span></button>
       <button type="button" data-lg="E1" id="lg-E1" aria-label="Championship"><span class="f">Championship</span><span class="s">Champ</span></button>
       <button type="button" data-lg="E2" id="lg-E2" aria-label="League One"><span class="f">League One</span><span class="s">Lg 1</span></button>
@@ -285,6 +286,13 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
     </div>
     <div class="panel tablewrap" style="padding:6px 10px"><table id="cl-table"></table></div>
     <div id="cl-detail"></div>
+  </section>
+
+  <section id="bbview" aria-labelledby="bb-h" hidden>
+    <h2 id="bb-h">Bet builder</h2>
+    <div class="days" id="bb-days" role="group" aria-label="Days to include"></div>
+    <div class="days times" id="bb-times" role="group" aria-label="Kick-off times to include"></div>
+    <div id="bbout"></div>
   </section>
 
   <section id="topview" aria-labelledby="top-h" hidden>
@@ -671,7 +679,7 @@ function renderBuilder(rows){
       <p class="note" style="margin:0">${anyEst ? "Odds marked est. are the model's guess at a bookmaker price. Check the real price before you bet: if it's lower, add a leg or pick another bet." : "All prices are average bookmaker odds."} Returns include your stake.</p>`;
   }
   return `<div class="panel top-lg bb" id="bb">
-    <div><h2 style="margin:0">Bet builder</h2><span class="note">The bet the model rates most likely to land that pays what you want to win. Uses the days and times picked above.</span></div>
+    <div><span class="note">The bet the model rates most likely to land that pays what you want to win, from the next 7 days. Pick days and kick-off times above to narrow it down.</span></div>
     <div class="row">Stake £<input id="bb-stake" type="number" inputmode="decimal" min="1" value="${BB.stake}"></div>
     <div class="row">Win £<input id="bb-min" type="number" inputmode="numeric" min="1" value="${BB.min}"> to £<input id="bb-max" type="number" inputmode="numeric" min="1" value="${BB.max}"></div>
     <div class="row">Legs <select id="bb-legs">${[0,1,2,3,4,5,6].map(n=>`<option value="${n}"${n===BB.legs?" selected":""}>${n ? n : "Fewest that work"}</option>`).join("")}</select></div>
@@ -682,7 +690,7 @@ function renderBuilder(rows){
   </div>`;
 }
 function wireBuilder(){
-  const save = () => { LS.set("bb", BB); BB_ALT = 0; renderTop(); $("bb").scrollIntoView({ block: "nearest" }); };
+  const save = () => { LS.set("bb", BB); BB_ALT = 0; renderBB(); $("bb").scrollIntoView({ block: "nearest" }); };
   const num = (id, key, min) => $(id).onchange = e => { const v = parseFloat(e.target.value); if (v >= min) BB[key] = v; if (BB.max < BB.min) [BB.min, BB.max] = [BB.max, BB.min]; save(); };
   num("bb-stake", "stake", 0.5); num("bb-min", "min", 1); num("bb-max", "max", 1);
   $("bb-legs").onchange = e => { BB.legs = +e.target.value; save(); };
@@ -691,8 +699,47 @@ function wireBuilder(){
     const k = b.dataset.bt; BB.types = BB.types.includes(k) ? BB.types.filter(x => x !== k) : BB.types.concat(k);
     save();
   });
-  $("bb-alt").onclick = () => { BB_ALT++; renderTop(); $("bb").scrollIntoView({ block: "nearest" }); };
-  if ($("bb-reset")) $("bb-reset").onclick = () => { BB_ALT = 0; renderTop(); $("bb").scrollIntoView({ block: "nearest" }); };
+  $("bb-alt").onclick = () => { BB_ALT++; renderBB(); $("bb").scrollIntoView({ block: "nearest" }); };
+  if ($("bb-reset")) $("bb-reset").onclick = () => { BB_ALT = 0; renderBB(); $("bb").scrollIntoView({ block: "nearest" }); };
+}
+const BB_DAYS = new Set(), BB_TIMES = new Set();
+function weekRows(){
+  const per = {}; let first = Infinity;
+  for (const lg in LEAGUES) { const b = buildFor(lg); per[lg] = b; if (b.fixtures.length) first = Math.min(first, Date.parse(b.fixtures[0].d)); }
+  const winEnd = new Date(first); winEnd.setHours(0,0,0,0); winEnd.setDate(winEnd.getDate() + TOP_DAYS);
+  let rows = [];
+  for (const lg in LEAGUES) {
+    const { matches: ms, fixtures: fs } = per[lg];
+    if (!fs.length || !ms.length) continue;
+    const asOf = new Date(ms[ms.length-1].t + 86400000);
+    rows = rows.concat(fs.filter(f=>Date.parse(f.d) < winEnd.getTime()).map(f=>({ lg, f, p: predict(ms, f.h, f.a, asOf) })).filter(r=>r.p));
+  }
+  return rows;
+}
+function chipRow(id, set, values, label, allLab, rerender){
+  for (const v of [...set]) if (!values.includes(v)) set.delete(v);
+  $(id).innerHTML = `<button type="button" data-v="" aria-pressed="${!set.size}">${allLab}</button>` +
+    values.map(v=>`<button type="button" data-v="${v}" aria-pressed="${set.has(v)}">${label(v)}</button>`).join("");
+  $(id).querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    const v = b.dataset.v; if (!v) set.clear(); else if (set.has(v)) set.delete(v); else set.add(v);
+    BB_ALT = 0; rerender();
+  }));
+}
+function renderBB(){
+  const rows = weekRows().filter(r => Date.parse(r.f.d.length > 10 ? r.f.d : r.f.d + "T15:00") > Date.now()); // not kicked off yet
+  const dayLab = d => new Date(d+"T12:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric"});
+  chipRow("bb-days", BB_DAYS, [...new Set(rows.map(r=>r.f.d.slice(0,10)))].sort(), dayLab, "All", renderBB);
+  const onDay = r => !BB_DAYS.size || BB_DAYS.has(r.f.d.slice(0,10));
+  const kt = r => r.f.d.length > 10 ? r.f.d.slice(11,16) : "";
+  chipRow("bb-times", BB_TIMES, [...new Set(rows.filter(onDay).map(kt).filter(Boolean))].sort(), k=>k, "All times", renderBB);
+  const use = rows.filter(r => onDay(r) && (!BB_TIMES.size || BB_TIMES.has(kt(r))));
+  $("bbout").innerHTML = renderBuilder(use);
+  wireBuilder();
+  $("bbout").querySelectorAll(".pick").forEach(row=>{
+    const go = ()=>{ setLeague(row.dataset.lg); ensureOption(row.dataset.h); ensureOption(row.dataset.a); $("home").value=row.dataset.h; $("away").value=row.dataset.a; render(); $("pick-h").scrollIntoView({behavior:"smooth"}); };
+    row.addEventListener("click", go);
+    row.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } });
+  });
 }
 function renderTop(){
   const el = $("top"), M = MARKETS[TOP_METRIC];
@@ -761,7 +808,6 @@ function renderTop(){
       <div>${top.map((r,i)=>pickRow(r,i,false)).join("")}</div>
     </div>`;
   }
-  const bbHtml = renderBuilder(all);
   const best = all.slice().sort((x,y)=>M.val(y.p)-M.val(x.p)).slice(0, BEST_N);
   el.innerHTML = `<div class="panel top-lg best">
       <div><h2 style="margin:0">Best across all leagues</h2><span class="note">The ${best.length} strongest ${M.label} picks from all four leagues${filterLab}</span></div>
@@ -770,12 +816,11 @@ function renderTop(){
         <input id="bn" type="number" inputmode="numeric" min="1" max="30" value="${BEST_N}" aria-label="Number of picks">
         <button type="button" id="bn-up" aria-label="Show more">+</button><span>picks</span></div>
       <div>${best.length ? best.map((r,i)=>pickRow(r,i,true)).join("") : `<p class="note">No matches on the chosen days and times.</p>`}</div>
-    </div>` + bbHtml + `<h3 class="sub" style="margin:18px 0 6px">Top ${TOP_N} by league</h3>` + lgChips + cards;
+    </div><h3 class="sub" style="margin:18px 0 6px">Top ${TOP_N} by league</h3>` + lgChips + cards;
   const setN = n => { BEST_N = clampN(n); LS.set("bestN", BEST_N); renderTop(); };
   $("bn-down").onclick = () => setN(BEST_N - 1);
   $("bn-up").onclick = () => setN(BEST_N + 1);
   $("bn").onchange = e => setN(e.target.value);
-  wireBuilder();
   $("top-lgs").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ TOP_LG = b.dataset.lg; LS.set("topLg", TOP_LG); renderTop(); }));
   $("top-metric").value = TOP_METRIC;
   $("top-note").textContent = `Matches most likely to ${M.desc}, over the next ${TOP_DAYS} days. Pick days and kick-off times to narrow it down. Tap a match to open its full prediction.`;
@@ -1132,26 +1177,30 @@ async function loadFixtures(file){
 let VIEW = LS0("view") || "league";
 function setView(v){
   VIEW = v; LS.set("view", v);
-  const top = v === "top", cl = v === "cl", other = top || cl;
+  const top = v === "top", cl = v === "cl", bb = v === "bb", other = top || cl || bb;
   $("topview").hidden = !top;
+  $("bbview").hidden = !bb;
   $("clview").hidden = !cl;
   document.querySelectorAll(".lgview").forEach(s=>s.hidden = other);
   $("status").hidden = other;
   $("test").hidden = other;
   $("lg-TOP").setAttribute("aria-pressed", String(top));
   $("lg-UCL").setAttribute("aria-pressed", String(cl));
+  $("lg-BB").setAttribute("aria-pressed", String(bb));
   for (const k in LEAGUES) $("lg-"+k).setAttribute("aria-pressed", String(!other && k===LG));
-  $("lgname").textContent = top ? "All leagues" : cl ? "Champions League" : LEAGUES[LG].name;
+  $("lgname").textContent = top || bb ? "All leagues" : cl ? "Champions League" : LEAGUES[LG].name;
   if (top) renderTop();
   if (cl) renderCL();
+  if (bb) renderBB();
 }
 function setLeague(lg, quiet){
   if (lg === "TOP") { setView("top"); return; }
   if (lg === "UCL") { setView("cl"); return; }
+  if (lg === "BB") { setView("bb"); return; }
   LG = lg; LS.set("league", lg);
   if (VIEW !== "league") setView("league");
   for (const k in LEAGUES) $("lg-"+k).setAttribute("aria-pressed", String(k===lg));
-  $("lg-TOP").setAttribute("aria-pressed", "false"); $("lg-UCL").setAttribute("aria-pressed", "false");
+  $("lg-TOP").setAttribute("aria-pressed", "false"); $("lg-UCL").setAttribute("aria-pressed", "false"); $("lg-BB").setAttribute("aria-pressed", "false");
   $("lgname").textContent = LEAGUES[lg].name; $("test").textContent = LEAGUES[lg].test;
   if (!quiet) { build(); fillPickers(); status(); render(); renderFixtures(); renderTrends(); renderResults(); }
 }
@@ -1160,6 +1209,7 @@ function refresh(){
   const h=$("home").value, a=$("away").value;
   build(); fillPickers(h,a); status(); render(); renderFixtures(); renderTrends(); renderResults();
   if (VIEW === "top") renderTop();
+  if (VIEW === "bb") renderBB();
 }
 
 $("home").addEventListener("change",render);
@@ -1175,6 +1225,7 @@ setLeague(LG, true);
 refresh();
 if (START_VIEW === "top") setView("top");
 if (START_VIEW === "cl") setView("cl");
+if (START_VIEW === "bb") setView("bb");
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
 }
