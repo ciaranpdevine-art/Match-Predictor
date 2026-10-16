@@ -285,10 +285,9 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
         <option value="pOver">Over 2.5</option>
         <option value="O35">Over 3.5</option>
         <option value="pBtts">GR</option>
-        <option value="OB">O2.5 &amp; GR</option>
-        <option value="WB">GR+ (win &amp; GR)</option>
-        <option value="WO">Overs+ (win &amp; O2.5)</option>
-        <option value="MIX">Best of both (GR or O2.5)</option>
+        <option value="WB">GR+</option>
+        <option value="WO">Overs+</option>
+        <option value="MIX">Best of both</option>
       </select></label>
     <div class="days" id="top-days" role="group" aria-label="Days to include"></div>
     <div class="days times" id="top-times" role="group" aria-label="Kick-off times to include"></div>
@@ -374,7 +373,7 @@ function buildFor(lg){
 function build(){ ({ matches, fixtures } = buildFor(LG)); }
 
 const TOP_N = 3, TOP_DAYS = 7;
-let TOP_METRIC = ["O15","pOver","O35","pBtts","OB","WB","WO","MIX"].includes(LS0("topMetric")) ? LS0("topMetric") : "pOver";
+let TOP_METRIC = ["O15","pOver","O35","pBtts","WB","WO","MIX"].includes(LS0("topMetric")) ? LS0("topMetric") : "pOver";
 // compare the other market with the one being ranked: green ▲ if more likely, red ▼ if less
 function vs(label, other, main){
   const o = pct(other), m = pct(main);
@@ -384,7 +383,6 @@ function vs(label, other, main){
 const MARKETS = {
   O15: { label: "Over 1.5", val: p => p.pOver15, pick: () => "Over 1.5 goals", sub: p => `Over 2.5 ${pct(p.pOver)}% · GR ${pct(p.pBtts)}%`, desc: "have 2 or more goals" },
   O35: { label: "Over 3.5", val: p => p.pOver35, pick: () => "Over 3.5 goals", sub: p => `Over 2.5 ${pct(p.pOver)}% · GR ${pct(p.pBtts)}%`, desc: "have 4 or more goals" },
-  OB: { label: "O2.5 & GR", val: p => p.pOB, pick: () => "Over 2.5 & GR", sub: p => `Over 2.5 ${pct(p.pOver)}% · GR ${pct(p.pBtts)}%`, desc: "have 3+ goals with both teams scoring" },
   pOver: { label: "Over 2.5", val: p => p.pOver, pick: () => "Over 2.5 goals", sub: p => vs("GR", p.pBtts, p.pOver), desc: "have 3 or more goals" },
   pBtts: { label: "GR", val: p => p.pBtts, pick: () => "Both teams score", sub: p => vs("Over 2.5", p.pOver, p.pBtts), desc: "see both teams score" },
   WB: { label: "GR+", val: p => Math.max(p.pHB, p.pAB), pick: (p, f) => `${p.pHB >= p.pAB ? f.h : f.a} win & GR`, sub: p => `Win ${pct(p.pHB >= p.pAB ? p.pH : p.pA)}% · GR ${pct(p.pBtts)}%`, desc: "see one side win with both teams scoring" },
@@ -492,7 +490,7 @@ function renderCLDetail(m){
       <tbody><tr><td>${m.h}</td><td class="r num">${pct(p.pHB)}%</td><td class="r num">${pct(p.pHO)}%</td></tr>
       <tr><td>${m.a}</td><td class="r num">${pct(p.pAB)}%</td><td class="r num">${pct(p.pAO)}%</td></tr></tbody>
     </table></div>
-      <p class="note" style="margin:8px 0 0"><b>O2.5 &amp; GR</b> (over 2.5 and both score, same game): <b class="num">${pct((p.pOB ?? 0))}%</b> · <b>Over 3.5</b>: <b class="num">${pct((p.pOver35 ?? 0))}%</b></p>
+      <p class="note" style="margin:8px 0 0"><b>Over 3.5</b>: <b class="num">${pct((p.pOver35 ?? 0))}%</b></p>
   </div>`;
 }
 
@@ -521,7 +519,6 @@ function fromSaved(a){
 const TRACK_EVAL = {
   O15: a => ({ v: a[9] != null ? a[9] : over15From(a[0]), label: "Over 1.5", hit: (h, g) => h + g >= 2 }),
   O35: a => ({ v: a[10] != null ? a[10] : fromSaved(a).o35, label: "Over 3.5", hit: (h, g) => h + g >= 4 }),
-  OB: a => ({ v: a[11] != null ? a[11] : fromSaved(a).ob, label: "O2.5 & GR", hit: (h, g) => h > 0 && g > 0 && h + g >= 3 }),
   pOver: a => ({ v: a[0], label: "Over 2.5", hit: (h, g) => h + g >= 3 }),
   pBtts: a => ({ v: a[1], label: "GR", hit: (h, g) => h > 0 && g > 0 }),
   WB: a => a[5] >= a[6] ? { v: a[5], side: "h", hit: (h, g) => h > g && g > 0 } : { v: a[6], side: "a", hit: (h, g) => g > h && h > 0 },
@@ -577,7 +574,7 @@ let TOP_TIMES = new Set(); // chosen kick-off times (HH:MM); empty = all times
 function renderTop(){
   const el = $("top"), M = MARKETS[TOP_METRIC];
   const pickRow = (r, i, showLg) => {
-    const t = Date.parse(r.f.d), combo = ["WB","WO","MIX","OB","O35"].includes(TOP_METRIC);
+    const t = Date.parse(r.f.d), combo = ["WB","WO","MIX","O35"].includes(TOP_METRIC);
     return `<div class="pick" role="button" tabindex="0" data-lg="${r.lg}" data-h="${r.f.h}" data-a="${r.f.a}">
       <span class="rk">${i+1}</span>
       <span class="m">${combo ? `<span class="pk">${M.pick(r.p, r.f)}</span>` : ""}${r.f.h} v ${r.f.a}<br><span class="d">${showLg ? `<span class="lgtag">${LG_SHORT[r.lg]}</span> ` : ""}${fmtShort(t)}${r.f.d.length>10?" · "+r.f.d.slice(11,16):""}</span><span class="sb">${M.sub(r.p)}</span></span>
@@ -766,7 +763,6 @@ function render(){
         <tbody><tr><td>${home}</td><td class="r num">${pct(p.pHB)}%</td><td class="r num">${pct(p.pHO)}%</td></tr>
         <tr><td>${away}</td><td class="r num">${pct(p.pAB)}%</td><td class="r num">${pct(p.pAO)}%</td></tr></tbody>
       </table></div>
-      <p class="note" style="margin:8px 0 0"><b>O2.5 &amp; GR</b> (over 2.5 and both score, same game): <b class="num">${pct(p.pOB)}%</b> · <b>Over 3.5</b>: <b class="num">${pct(p.pOver35)}%</b></p>
       <p class="note" style="margin:6px 0 0">Combined chances come from the same scoreline model, so they allow for winning and goals going together. They aren't just the two percentages multiplied.</p>`; })()}
     ${(()=>{ const f = findFixture(home, away); const q = f ? marketP(f) : null; if (q==null) return ""; const b = bestEst(p.pOver, q);
       return `<p class="note" style="margin:10px 0 0">Bookmakers: <span class="num">${pct(q)}%</span> · Best estimate: <strong class="num">${pct(b)}%</strong>${(BLEND_W[LG]??0)===0?" (in this league, the bookmaker price has been the better guide)":""}</p>`; })()}
