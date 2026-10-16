@@ -373,6 +373,7 @@ function buildFor(lg){
 function build(){ ({ matches, fixtures } = buildFor(LG)); }
 
 const TOP_N = 3, TOP_DAYS = 7;
+let TOP_LG = LS0("topLg") || "E0";
 let TOP_METRIC = ["O15","pOver","O35","pBtts","WB","WO","MIX"].includes(LS0("topMetric")) ? LS0("topMetric") : "pOver";
 // compare the other market with the one being ranked: green ▲ if more likely, red ▼ if less
 function vs(label, other, main){
@@ -622,10 +623,15 @@ function renderTop(){
   }));
   const filterLab = (TOP_SEL.size ? ", on " + [...TOP_SEL].sort().map(dayLab).join(", ") : "") + (TOP_TIMES.size ? `, kicking off at ${[...TOP_TIMES].sort().join(", ")}` : "");
   let all = [], cards = "";
+  if (!(TOP_LG in LEAGUES)) TOP_LG = Object.keys(LEAGUES)[0];
+  const lgChips = `<div class="days" id="top-lgs" role="group" aria-label="League" style="margin:4px 0 10px">` +
+    Object.keys(LEAGUES).map(lg=>`<button type="button" data-lg="${lg}" aria-pressed="${lg===TOP_LG}">${LG_SHORT[lg]}</button>`).join("") + `</div>`;
   for (const lg in LEAGUES) {
-    if (!byLg[lg]) { cards += `<div class="panel top-lg"><h2 style="margin:0">${LEAGUES[lg].name}</h2><p class="note" style="margin:0">No upcoming fixtures loaded.</p></div>`; continue; }
+    const show = lg === TOP_LG;
+    if (!byLg[lg]) { if (show) cards += `<div class="panel top-lg"><h2 style="margin:0">${LEAGUES[lg].name}</h2><p class="note" style="margin:0">No upcoming fixtures loaded.</p></div>`; continue; }
     const rows = byLg[lg].filter(onPick);
     all = all.concat(rows);
+    if (!show) continue;
     const top = rows.slice().sort((x,y)=>M.val(y.p)-M.val(x.p)).slice(0, TOP_N);
     const ds = [...new Set(rows.map(r=>r.f.d.slice(0,10)))].map(dayLab);
     cards += `<div class="panel top-lg">
@@ -633,7 +639,6 @@ function renderTop(){
       <div>${top.map((r,i)=>pickRow(r,i,false)).join("")}</div>
     </div>`;
   }
-  const trackHtml = renderTrack(per, M);
   const best = all.sort((x,y)=>M.val(y.p)-M.val(x.p)).slice(0, BEST_N);
   el.innerHTML = `<div class="panel top-lg best">
       <div><h2 style="margin:0">Best across all leagues</h2><span class="note">The ${best.length} strongest ${M.label} picks from all four leagues${filterLab}</span></div>
@@ -642,11 +647,12 @@ function renderTop(){
         <input id="bn" type="number" inputmode="numeric" min="1" max="30" value="${BEST_N}" aria-label="Number of picks">
         <button type="button" id="bn-up" aria-label="Show more">+</button><span>picks</span></div>
       <div>${best.length ? best.map((r,i)=>pickRow(r,i,true)).join("") : `<p class="note">No matches on the chosen days and times.</p>`}</div>
-    </div>` + cards + trackHtml;
+    </div><h3 class="sub" style="margin:18px 0 6px">Top ${TOP_N} by league</h3>` + lgChips + cards;
   const setN = n => { BEST_N = clampN(n); LS.set("bestN", BEST_N); renderTop(); };
   $("bn-down").onclick = () => setN(BEST_N - 1);
   $("bn-up").onclick = () => setN(BEST_N + 1);
   $("bn").onchange = e => setN(e.target.value);
+  $("top-lgs").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ TOP_LG = b.dataset.lg; LS.set("topLg", TOP_LG); renderTop(); }));
   $("top-metric").value = TOP_METRIC;
   $("top-note").textContent = `Matches most likely to ${M.desc}, over the next ${TOP_DAYS} days. Pick days and kick-off times to narrow it down. Tap a match to open its full prediction.`;
   el.querySelectorAll(".pick").forEach(row=>{
