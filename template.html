@@ -89,8 +89,8 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .pick .d{font-size:.75rem;color:var(--muted);font-weight:400}
 .pick .pp{font-family:var(--mono);font-size:1.05rem;text-align:right}
 .pick .pp small{display:block;font-size:.68rem;color:var(--muted);font-family:var(--body);white-space:nowrap}
-#top-metric{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:560px;margin:4px 0 2px}
-#top-metric button{padding:10px 4px;text-align:center;font-size:.85rem;line-height:1.2}
+#top-metric{display:grid;grid-template-columns:repeat(5,1fr);width:100%;max-width:560px;margin:4px 0 2px}
+#top-metric button{padding:9px 2px;text-align:center;font-size:.8rem;line-height:1.2}
 .pick .sb{display:block;font-size:.72rem;color:var(--muted);font-weight:400;margin-top:1px}
 .pick .sb .up{color:var(--accent);font-weight:600}
 .pick .sb .down{color:var(--down);font-weight:600}
@@ -280,7 +280,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
   <section id="topview" aria-labelledby="top-h" hidden>
     <h2 id="top-h">Top picks</h2>
     <div class="seg" id="top-metric" role="group" aria-label="Rank matches by">
-      <button type="button" data-m="pOver">Over 2.5</button><button type="button" data-m="pBtts">BTTS</button><button type="button" data-m="WB">Win +<br>BTTS</button><button type="button" data-m="WO">Win +<br>O2.5</button>
+      <button type="button" data-m="pOver">Over<br>2.5</button><button type="button" data-m="pBtts">BTTS</button><button type="button" data-m="WB">Win +<br>BTTS</button><button type="button" data-m="WO">Win +<br>O2.5</button><button type="button" data-m="MIX">Best of<br>both</button>
     </div>
     <div class="days" id="top-days" role="group" aria-label="Days to include"></div>
     <div class="days times" id="top-times" role="group" aria-label="Kick-off times to include"></div>
@@ -366,7 +366,7 @@ function buildFor(lg){
 function build(){ ({ matches, fixtures } = buildFor(LG)); }
 
 const TOP_N = 3, TOP_DAYS = 7;
-let TOP_METRIC = ["pOver","pBtts","WB","WO"].includes(LS0("topMetric")) ? LS0("topMetric") : "pOver";
+let TOP_METRIC = ["pOver","pBtts","WB","WO","MIX"].includes(LS0("topMetric")) ? LS0("topMetric") : "pOver";
 // compare the other market with the one being ranked: green ▲ if more likely, red ▼ if less
 function vs(label, other, main){
   const o = pct(other), m = pct(main);
@@ -378,6 +378,8 @@ const MARKETS = {
   pBtts: { label: "BTTS", val: p => p.pBtts, pick: () => "Both teams score", sub: p => vs("Over 2.5", p.pOver, p.pBtts), desc: "see both teams score" },
   WB: { label: "Win + BTTS", val: p => Math.max(p.pHB, p.pAB), pick: (p, f) => `${p.pHB >= p.pAB ? f.h : f.a} win & BTTS`, sub: p => `Win ${pct(p.pHB >= p.pAB ? p.pH : p.pA)}% · BTTS ${pct(p.pBtts)}%`, desc: "see one side win with both teams scoring" },
   WO: { label: "Win + O2.5", val: p => Math.max(p.pHO, p.pAO), pick: (p, f) => `${p.pHO >= p.pAO ? f.h : f.a} win & over 2.5`, sub: p => `Win ${pct(p.pHO >= p.pAO ? p.pH : p.pA)}% · Over ${pct(p.pOver)}%`, desc: "see one side win with 3 or more goals" },
+  MIX: { label: "BTTS/Over 2.5", val: p => Math.max(p.pOver, p.pBtts), pick: p => p.pBtts > p.pOver ? "BTTS" : "Over 2.5 goals",
+    sub: p => p.pBtts > p.pOver ? vs("Over 2.5", p.pOver, p.pBtts) : vs("BTTS", p.pBtts, p.pOver), desc: "land the better of BTTS or Over 2.5" },
 };
 // ---------- Results by round (current league, this season) ----------
 const RES_SEL = {};
@@ -487,6 +489,7 @@ const TRACK_EVAL = {
   pOver: a => ({ v: a[0], label: "Over 2.5", hit: (h, g) => h + g >= 3 }),
   pBtts: a => ({ v: a[1], label: "BTTS", hit: (h, g) => h > 0 && g > 0 }),
   WB: a => a[5] >= a[6] ? { v: a[5], side: "h", hit: (h, g) => h > g && g > 0 } : { v: a[6], side: "a", hit: (h, g) => g > h && h > 0 },
+  MIX: a => a[1] > a[0] ? { v: a[1], bet: "BTTS", hit: (h, g) => h > 0 && g > 0 } : { v: a[0], bet: "Over 2.5", hit: (h, g) => h + g >= 3 },
   WO: a => a[7] >= a[8] ? { v: a[7], side: "h", hit: (h, g) => h > g && h + g >= 3 } : { v: a[8], side: "a", hit: (h, g) => g > h && h + g >= 3 },
 };
 function renderTrack(per, M){
@@ -500,7 +503,7 @@ function renderTrack(per, M){
     const old = Date.parse(day+"T12:00") < today.getTime() - 3*86400000;
     const status = m ? (e.hit(m.hg, m.ag) ? "hit" : "miss") : old ? "void" : "wait";
     if (status === "void") continue; // postponed or never reported
-    (byDay[day] = byDay[day] || []).push({ lg, ko, h, a: aw, v: e.v, side: e.side, status, m });
+    (byDay[day] = byDay[day] || []).push({ lg, ko, h, a: aw, v: e.v, side: e.side, bet: e.bet, status, m });
   }
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
   const days = Object.keys(byDay).filter(d => d <= todayStr).sort().reverse(); // future days aren't shown
@@ -515,7 +518,7 @@ function renderTrack(per, M){
     const head = done.length ? `<b>${dh} of ${done.length}</b> landed <span class="note">· expected ${de.toFixed(1)}</span>${done.length<top.length?` <span class="note">· ${top.length-done.length} to play</span>`:""}` : `<span class="note">awaiting results</span>`;
     const list = top.map(r=>{
       const icon = r.status==="hit" ? `<span class="tk hit" title="Landed">✓</span>` : r.status==="miss" ? `<span class="tk miss" title="Missed">✗</span>` : `<span class="tk wait" title="Not played yet">…</span>`;
-      const pick = r.side ? `${r.side==="h"?r.h:r.a} win · ` : "";
+      const pick = r.side ? `${r.side==="h"?r.h:r.a} win · ` : r.bet ? `${r.bet} · ` : "";
       return `<li>${icon}<span class="tm">${pick}${r.h} v ${r.a}<span class="note"> · ${LG_SHORT[r.lg]}</span></span><span class="num">${r.m ? r.m.hg+"-"+r.m.ag : ""}</span><span class="num note">${pct(r.v)}%</span></li>`;
     }).join("");
     const open = !opened && (anyDone ? done.length > 0 : true); if (open) opened = true;
@@ -538,7 +541,7 @@ let TOP_TIMES = new Set(); // chosen kick-off times (HH:MM); empty = all times
 function renderTop(){
   const el = $("top"), M = MARKETS[TOP_METRIC];
   const pickRow = (r, i, showLg) => {
-    const t = Date.parse(r.f.d), combo = TOP_METRIC === "WB" || TOP_METRIC === "WO";
+    const t = Date.parse(r.f.d), combo = TOP_METRIC === "WB" || TOP_METRIC === "WO" || TOP_METRIC === "MIX";
     return `<div class="pick" role="button" tabindex="0" data-lg="${r.lg}" data-h="${r.f.h}" data-a="${r.f.a}">
       <span class="rk">${i+1}</span>
       <span class="m">${combo ? `<span class="pk">${M.pick(r.p, r.f)}</span>` : ""}${r.f.h} v ${r.f.a}<br><span class="d">${showLg ? `<span class="lgtag">${LG_SHORT[r.lg]}</span> ` : ""}${fmtShort(t)}${r.f.d.length>10?" · "+r.f.d.slice(11,16):""}</span><span class="sb">${M.sub(r.p)}</span></span>
