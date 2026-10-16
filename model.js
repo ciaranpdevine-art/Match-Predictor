@@ -28,6 +28,7 @@ function predict(matches, home, away, asOf) {
   let f = 1;
   for (let i = 0; i <= 10; i++) { if (i) f *= i; dist.push(Math.exp(-tot) * Math.pow(tot, i) / f); }
   const pOver = 1 - dist[0] - dist[1] - dist[2];
+  const pOver15 = 1 - dist[0] - dist[1];
   // both teams to score from independent Poissons
   const pBtts = (1 - Math.exp(-xh)) * (1 - Math.exp(-xa));
   // full scoreline grid for result and combined markets
@@ -42,7 +43,7 @@ function predict(matches, home, away, asOf) {
     else { pD += p; if (both) pDB += p; if (over) pDO += p; }
   }
   const tw = pH + pD + pA;
-  return { xh, xa, tot, pOver, pBtts, dist, homeGames: H.w, awayGames: A.w,
+  return { xh, xa, tot, pOver, pOver15, pBtts, dist, homeGames: H.w, awayGames: A.w,
     pH: pH / tw, pD: pD / tw, pA: pA / tw, pHB: pHB / tw, pAB: pAB / tw, pHO: pHO / tw, pAO: pAO / tw, pDB: pDB / tw, pDO: pDO / tw };
 }
 

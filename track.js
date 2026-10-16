@@ -31,7 +31,7 @@ for (const lg of ["E0", "E1", "E2", "E3"]) {
     if (played.has(`${d.slice(0, 10)}|${h}|${a}`)) continue;
     const p = predict(ms, h, a, asOf);
     if (!p) continue;
-    track[`${lg}|${d}|${h}|${a}`] = [p.pOver, p.pBtts, p.pH, p.pD, p.pA, p.pHB, p.pAB, p.pHO, p.pAO].map(r3);
+    track[`${lg}|${d}|${h}|${a}`] = [p.pOver, p.pBtts, p.pH, p.pD, p.pA, p.pHB, p.pAB, p.pHO, p.pAO, p.pOver15].map(r3);
     saved++;
   }
 }

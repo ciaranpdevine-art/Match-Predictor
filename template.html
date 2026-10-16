@@ -89,8 +89,10 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .pick .d{font-size:.75rem;color:var(--muted);font-weight:400}
 .pick .pp{font-family:var(--mono);font-size:1.05rem;text-align:right}
 .pick .pp small{display:block;font-size:.68rem;color:var(--muted);font-family:var(--body);white-space:nowrap}
-#top-metric{display:grid;grid-template-columns:repeat(5,1fr);width:100%;max-width:560px;margin:4px 0 2px}
-#top-metric button{padding:9px 2px;text-align:center;font-size:.8rem;line-height:1.2}
+#top-metric{display:grid;grid-template-columns:repeat(3,1fr);width:100%;max-width:560px;margin:4px 0 2px}
+#top-metric button{padding:10px 2px;text-align:center;font-size:.85rem;line-height:1.2;border-top:1px solid var(--line)}
+#top-metric button:nth-child(-n+3){border-top:0}
+#top-metric button:nth-child(3n+1){border-left:0}
 .pick .sb{display:block;font-size:.72rem;color:var(--muted);font-weight:400;margin-top:1px}
 .pick .sb .up{color:var(--accent);font-weight:600}
 .pick .sb .down{color:var(--down);font-weight:600}
@@ -280,7 +282,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
   <section id="topview" aria-labelledby="top-h" hidden>
     <h2 id="top-h">Top picks</h2>
     <div class="seg" id="top-metric" role="group" aria-label="Rank matches by">
-      <button type="button" data-m="pOver">Over<br>2.5</button><button type="button" data-m="pBtts">BTTS</button><button type="button" data-m="WB">Win +<br>BTTS</button><button type="button" data-m="WO">Win +<br>O2.5</button><button type="button" data-m="MIX">Best of<br>both</button>
+      <button type="button" data-m="O15">Over 1.5</button><button type="button" data-m="pOver">Over 2.5</button><button type="button" data-m="pBtts">BTTS</button><button type="button" data-m="WB">Win + BTTS</button><button type="button" data-m="WO">Win + O2.5</button><button type="button" data-m="MIX">Best of both</button>
     </div>
     <div class="days" id="top-days" role="group" aria-label="Days to include"></div>
     <div class="days times" id="top-times" role="group" aria-label="Kick-off times to include"></div>
@@ -366,7 +368,7 @@ function buildFor(lg){
 function build(){ ({ matches, fixtures } = buildFor(LG)); }
 
 const TOP_N = 3, TOP_DAYS = 7;
-let TOP_METRIC = ["pOver","pBtts","WB","WO","MIX"].includes(LS0("topMetric")) ? LS0("topMetric") : "pOver";
+let TOP_METRIC = ["O15","pOver","pBtts","WB","WO","MIX"].includes(LS0("topMetric")) ? LS0("topMetric") : "pOver";
 // compare the other market with the one being ranked: green ▲ if more likely, red ▼ if less
 function vs(label, other, main){
   const o = pct(other), m = pct(main);
@@ -374,6 +376,7 @@ function vs(label, other, main){
   return `<span class="${cls}" title="${label} is ${o>m?"more":o<m?"less":"equally"} likely than the main pick">${label} ${o}% ${arrow}</span>`;
 }
 const MARKETS = {
+  O15: { label: "Over 1.5", val: p => p.pOver15, pick: () => "Over 1.5 goals", sub: p => `Over 2.5 ${pct(p.pOver)}% · BTTS ${pct(p.pBtts)}%`, desc: "have 2 or more goals" },
   pOver: { label: "Over 2.5", val: p => p.pOver, pick: () => "Over 2.5 goals", sub: p => vs("BTTS", p.pBtts, p.pOver), desc: "have 3 or more goals" },
   pBtts: { label: "BTTS", val: p => p.pBtts, pick: () => "Both teams score", sub: p => vs("Over 2.5", p.pOver, p.pBtts), desc: "see both teams score" },
   WB: { label: "Win + BTTS", val: p => Math.max(p.pHB, p.pAB), pick: (p, f) => `${p.pHB >= p.pAB ? f.h : f.a} win & BTTS`, sub: p => `Win ${pct(p.pHB >= p.pAB ? p.pH : p.pA)}% · BTTS ${pct(p.pBtts)}%`, desc: "see one side win with both teams scoring" },
@@ -484,8 +487,17 @@ function renderCLDetail(m){
   </div>`;
 }
 
+// Older saved predictions don't include Over 1.5, so rebuild it from the saved Over 2.5 figure
+// (both come from the same expected total: find the total that gives that Over 2.5 chance).
+function over15From(pO25){
+  let lo = 0, hi = 10;
+  for (let i = 0; i < 50; i++) { const l = (lo + hi) / 2, p = 1 - Math.exp(-l) * (1 + l + l*l/2); if (p < pO25) lo = l; else hi = l; }
+  const l = (lo + hi) / 2; return 1 - Math.exp(-l) * (1 + l);
+}
+
 // Track record: each day's top picks (saved before kick-off) checked against results
 const TRACK_EVAL = {
+  O15: a => ({ v: a[9] != null ? a[9] : over15From(a[0]), label: "Over 1.5", hit: (h, g) => h + g >= 2 }),
   pOver: a => ({ v: a[0], label: "Over 2.5", hit: (h, g) => h + g >= 3 }),
   pBtts: a => ({ v: a[1], label: "BTTS", hit: (h, g) => h > 0 && g > 0 }),
   WB: a => a[5] >= a[6] ? { v: a[5], side: "h", hit: (h, g) => h > g && g > 0 } : { v: a[6], side: "a", hit: (h, g) => g > h && h > 0 },
@@ -703,7 +715,7 @@ function render(){
       <div class="stat"><div class="k">${away} xG</div><div class="v">${p.xa.toFixed(2)}</div></div>
       <div class="stat"><div class="k">Expected total</div><div class="v">${p.tot.toFixed(2)}</div></div>
       <div class="stat"><div class="k">Most likely total</div><div class="v">${cols.reduce((a,b)=>b.v>a.v?b:a).lab} goals</div></div>
-      <div class="stat"><div class="k">Under 2.5</div><div class="v">${100-pct(p.pOver)}%</div></div>
+      <div class="stat"><div class="k">Over 1.5</div><div class="v">${pct(p.pOver15)}%</div></div>
       <div class="stat"><div class="k">BTTS – no</div><div class="v">${100-pct(p.pBtts)}%</div></div>
     </div>
     <div class="dist" aria-label="Chance of each total number of goals">
