@@ -114,17 +114,18 @@ function probs(lh, la) {
   const po = (l, k) => { let f = 1; for (let i = 2; i <= k; i++) f *= i; return Math.exp(-l) * Math.pow(l, k) / f; };
   const ph = [], pa = [];
   for (let i = 0; i <= 10; i++) { ph.push(po(lh, i)); pa.push(po(la, i)); }
-  let pH = 0, pD = 0, pA = 0, pHB = 0, pAB = 0, pHO = 0, pAO = 0;
+  let pH = 0, pD = 0, pA = 0, pHB = 0, pAB = 0, pHO = 0, pAO = 0, pOB = 0;
   const dist = Array(11).fill(0);
   for (let i = 0; i <= 10; i++) for (let j = 0; j <= 10; j++) {
     const p = ph[i] * pa[j], both = i > 0 && j > 0, over = i + j >= 3;
     if (i + j <= 10) dist[i + j] += p;
+    if (both && over) pOB += p;
     if (i > j) { pH += p; if (both) pHB += p; if (over) pHO += p; }
     else if (i < j) { pA += p; if (both) pAB += p; if (over) pAO += p; }
     else pD += p;
   }
   const pOver = 1 - dist[0] - dist[1] - dist[2], pBtts = (1 - Math.exp(-lh)) * (1 - Math.exp(-la));
-  return { xh: lh, xa: la, tot: lh + la, pOver, pBtts, dist, pH, pD, pA, pHB, pAB, pHO, pAO };
+  return { xh: lh, xa: la, tot: lh + la, pOver, pOver15: 1 - dist[0] - dist[1], pOver35: pOver - dist[3], pBtts, dist, pH, pD, pA, pHB, pAB, pHO, pAO, pOB };
 }
 
 module.exports = { loadDomestic, loadCL, features, fit, lambdas, probs, rating, LEAGUE_NAMES, ALIAS };
@@ -165,12 +166,12 @@ if (require.main === module) {
   for (const m of CL[cur]) {
     const f = features(D, m), p = probs(...lambdas(P, f));
     const raw = p.pBtts; p.pBtts = baseB + BTTS_K * (raw - baseB);
-    const sc = p.pBtts / raw; p.pHB *= sc; p.pAB *= sc;           // keep win & BTTS consistent with the adjusted BTTS
+    const sc = p.pBtts / raw; p.pHB *= sc; p.pAB *= sc; p.pOB *= sc;           // keep win & BTTS consistent with the adjusted BTTS
     const r3 = x => Math.round(x * 1000) / 1000;
     out.matches.push({ round: m.round, ko: m.ko, h: m.H, a: m.A, hg: m.hg, ag: m.ag,
       lh: LEAGUE_NAMES[f.rH.lg], la: LEAGUE_NAMES[f.rA.lg], thinH: !f.rH.n, thinA: !f.rA.n,
       p: { xh: r3(p.xh), xa: r3(p.xa), pOver: r3(p.pOver), pBtts: r3(p.pBtts), pH: r3(p.pH), pD: r3(p.pD), pA: r3(p.pA),
-           pHB: r3(p.pHB), pAB: r3(p.pAB), pHO: r3(p.pHO), pAO: r3(p.pAO), dist: p.dist.slice(0, 7).map(r3) } });
+           pHB: r3(p.pHB), pAB: r3(p.pAB), pHO: r3(p.pHO), pAO: r3(p.pAO), pOB: r3(p.pOB), pOver15: r3(p.pOver15), pOver35: r3(p.pOver35), dist: p.dist.slice(0, 7).map(r3) } });
   }
   fs.writeFileSync(path.join(ROOT, "cl.json"), JSON.stringify(out));
   console.log(`  Champions League: ${out.matches.filter(m => m.hg == null).length} upcoming matches predicted (fitted on ${train.length} past CL games)`);
