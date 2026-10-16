@@ -149,7 +149,7 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .bb .row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:.85rem;color:var(--muted)}
 .bb .row input{width:4.2em;text-align:center;font:inherit;font-family:var(--mono);font-size:1rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 4px}
 .bb .row select{width:auto;flex:0 1 auto;font-size:.95rem;padding:8px}
-.bb .row input{box-sizing:border-box;flex:0 0 auto;width:4.6em!important}
+.bb .row input{box-sizing:border-box;flex:0 0 auto;width:3.8em!important}
 .bb .days{flex-wrap:wrap;overflow:visible}
 .bb .tot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid var(--line);padding-top:10px}
 .bb .tot div{display:flex;flex-direction:column;gap:2px}
@@ -650,7 +650,7 @@ function bbSolve(legs, nGroups, lo, hi, kMin, kMax){
   return null;
 }
 function renderBuilder(rows){
-  const lo = 1 + BB.min / BB.stake, hi = 1 + BB.max / BB.stake;
+  const lo = 1 + BB.min / BB.stake, hi = lo * 1.5; // the cheapest price that pays the target is usually the most likely to land
   const kMin = BB.legs || 1, kMax = BB.legs || 6;
   let pool = rows.filter(r => Date.parse(r.f.d.length > 10 ? r.f.d : r.f.d + "T15:00") > Date.now()), bet = null;
   for (let n = 0; n <= BB_ALT; n++) {
@@ -680,8 +680,7 @@ function renderBuilder(rows){
   }
   return `<div class="panel top-lg bb" id="bb">
     <div><span class="note">The bet the model rates most likely to land that pays what you want to win, from the next 7 days. Pick days and kick-off times above to narrow it down.</span></div>
-    <div class="row">Stake £<input id="bb-stake" type="number" inputmode="decimal" min="1" value="${BB.stake}"></div>
-    <div class="row">Win £<input id="bb-min" type="number" inputmode="numeric" min="1" value="${BB.min}"> to £<input id="bb-max" type="number" inputmode="numeric" min="1" value="${BB.max}"></div>
+    <div class="row">Stake £<input id="bb-stake" type="number" inputmode="decimal" min="1" value="${BB.stake}"> <span style="margin-left:8px">Win £</span><input id="bb-min" type="number" inputmode="numeric" min="1" value="${BB.min}"></div>
     <div class="row">Legs <select id="bb-legs">${[0,1,2,3,4,5,6].map(n=>`<option value="${n}"${n===BB.legs?" selected":""}>${n ? n : "Fewest that work"}</option>`).join("")}</select></div>
     <div class="row">Each leg at least <select id="bb-minp">${[0,30,35,40,50,60].map(n=>`<option value="${n}"${n===BB.minp?" selected":""}>${n ? n + "%" : "any"}</option>`).join("")}</select></div>
     <div class="days" id="bb-types" role="group" aria-label="Bet types to use">${typeChips}</div>
@@ -691,8 +690,8 @@ function renderBuilder(rows){
 }
 function wireBuilder(){
   const save = () => { LS.set("bb", BB); BB_ALT = 0; renderBB(); $("bb").scrollIntoView({ block: "nearest" }); };
-  const num = (id, key, min) => $(id).onchange = e => { const v = parseFloat(e.target.value); if (v >= min) BB[key] = v; if (BB.max < BB.min) [BB.min, BB.max] = [BB.max, BB.min]; save(); };
-  num("bb-stake", "stake", 0.5); num("bb-min", "min", 1); num("bb-max", "max", 1);
+  const num = (id, key, min) => $(id).onchange = e => { const v = parseFloat(e.target.value); if (v >= min) BB[key] = v; save(); };
+  num("bb-stake", "stake", 0.5); num("bb-min", "min", 1);
   $("bb-legs").onchange = e => { BB.legs = +e.target.value; save(); };
   $("bb-minp").onchange = e => { BB.minp = +e.target.value; save(); };
   $("bb-types").querySelectorAll("button").forEach(b => b.onclick = () => {
