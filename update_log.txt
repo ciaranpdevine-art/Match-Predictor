@@ -1,4 +1,4 @@
-Last run: 2026-10-16 22:24 UK time
+Last run: 2026-10-17 01:27 UK time
 Results (season 2627)
   E0: 0 new results, latest 2026-10-12
   E1: 0 new results, latest 2026-10-14
@@ -6,7 +6,7 @@ Results (season 2627)
   E3: 0 new results, latest 2026-10-10
 Fixtures
   E0: 320 fixtures still to play
-  E1: 433 fixtures still to play
+  E1: 432 fixtures still to play
   E2: 449 fixtures still to play
   E3: 438 fixtures still to play
 Odds
