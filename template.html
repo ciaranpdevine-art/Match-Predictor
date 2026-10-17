@@ -151,6 +151,16 @@ button:hover,.filebtn:hover{border-color:var(--accent)}
 .bb .row select{width:auto;flex:0 1 auto;font-size:.95rem;padding:8px}
 .bb .row input{box-sizing:border-box;flex:0 0 auto;width:3.8em!important}
 .bb .days{flex-wrap:wrap;overflow:visible}
+.du .steps{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-family:var(--mono);font-size:.9rem}
+.du .steps span{padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.du .steps span.done{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.du .steps span.now{border-color:var(--accent);color:var(--fg);font-weight:700}
+.du .steps i{color:var(--muted);font-style:normal}
+.du .cur{border:1px solid var(--accent);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.du .cur .btns{display:flex;gap:8px;flex-wrap:wrap}
+.du .hist{font-size:.8rem;color:var(--muted);margin:0;padding-left:18px}
+.du .won{color:var(--accent);font-weight:600}.du .lost{color:var(--down);font-weight:600}
+.du .go{padding:7px 12px;font-size:.85rem;white-space:nowrap}
 .bb .tot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid var(--line);padding-top:10px}
 .bb .tot div{display:flex;flex-direction:column;gap:2px}
 .bb .tot .k{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
@@ -293,6 +303,7 @@ ol.how{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;ma
     <div class="days" id="bb-days" role="group" aria-label="Days to include"></div>
     <div class="days times" id="bb-times" role="group" aria-label="Kick-off times to include"></div>
     <div id="bbout"></div>
+    <div id="duout"></div>
   </section>
 
   <section id="topview" aria-labelledby="top-h" hidden>
@@ -724,6 +735,88 @@ function chipRow(id, set, values, label, allLab, rerender){
     BB_ALT = 0; rerender();
   }));
 }
+// ---------- Double up: roll a stake through near-evens bets (e.g. £10 → £20 → £40 → £80) ----------
+const DU_LO = 1.8, DU_HI = 2.3; // near evens: about 4/5 to 13/10
+let DU = Object.assign({ start: 10, target: 80, hist: [], cur: null }, LS.get("du") || {});
+const duSave = () => LS.set("du", DU);
+const duBank = () => DU.hist.reduce((m, h) => h.res === "won" ? m * h.odds : m, DU.start);
+const duOver = () => DU.hist.some(h => h.res === "lost") || duBank() >= DU.target - 0.005;
+function duResult(c){ // look the bet up in the results, if it's been played
+  const m = (buildFor(c.lg).matches || []).find(x => x.d === c.d.slice(0,10) && x.h === c.h && x.a === c.a);
+  if (!m) return null;
+  const won = c.type === "pOver" ? m.hg + m.ag >= 3 : c.side === "h" ? m.hg > m.ag : m.ag > m.hg;
+  return { won, score: `${m.hg}-${m.ag}` };
+}
+function duCands(rows){
+  const out = [], used = new Set(DU.hist.map(h => h.h + "|" + h.a));
+  for (const r of rows) {
+    const p = r.p, f = r.f;
+    if (used.has(f.h + "|" + f.a)) continue; // one bet per match in a run
+    if (f.oH > 1) out.push({ r, type: "W", side: "h", label: `${f.h} win`, prob: p.pH, odds: f.oH });
+    if (f.oA > 1) out.push({ r, type: "W", side: "a", label: `${f.a} win`, prob: p.pA, odds: f.oA });
+    if (f.o > 1) out.push({ r, type: "pOver", side: "", label: "Over 2.5 goals", prob: p.pOver, odds: f.o });
+  }
+  return out.filter(c => c.odds >= DU_LO && c.odds <= DU_HI).sort((x, y) => y.prob * y.odds - x.prob * x.odds);
+}
+function renderDU(rows){
+  // settle the open bet automatically once its result is in
+  if (DU.cur) { const res = duResult(DU.cur); if (res) { DU.hist.push({ ...DU.cur, res: res.won ? "won" : "lost", score: res.score }); DU.cur = null; duSave(); } }
+  const bank = duBank(), over = duOver(), lost = DU.hist.some(h => h.res === "lost");
+  // the ladder: amounts actually reached, then the planned doubles (at evens) up to the target
+  const reached = [DU.start]; for (const h of DU.hist) if (h.res === "won") reached.push(reached[reached.length-1] * h.odds);
+  const ladder = reached.slice(); let v = ladder[ladder.length-1];
+  while (!over && v < DU.target - 0.005 && ladder.length < 8) { v = Math.min(v * 2, DU.target); ladder.push(v); }
+  const steps = ladder.map((x, i) => {
+    const cls = i < reached.length - 1 ? "done" : i === reached.length - 1 ? (over ? (lost ? "" : "done") : "now") : "";
+    return `<span class="${cls}">£${x < 100 && x % 1 ? x.toFixed(2) : Math.round(x)}</span>`;
+  }).join("<i>→</i>");
+  const hist = DU.hist.length ? `<ol class="hist">${DU.hist.map(h => `<li>${h.label}, ${h.h} v ${h.a} @ ${frac(h.odds)}: <span class="${h.res}">${h.res === "won" ? "won" : "lost"}</span>${h.score ? " (" + h.score + ")" : ""}</li>`).join("")}</ol>` : "";
+  let body;
+  if (over) {
+    body = lost
+      ? `<div class="cur"><b class="lost">Lost at step ${DU.hist.length}.</b><span class="note" style="margin:0">That's the £${DU.start} gone. Start again whenever you're ready.</span><div class="btns"><button type="button" id="du-reset">Start again</button></div></div>`
+      : `<div class="cur"><b class="won">Done: £${bank.toFixed(2)} from £${DU.start}.</b><span class="note" style="margin:0">Bank it. Starting again risks a fresh £${DU.start}, not your winnings.</span><div class="btns"><button type="button" id="du-reset">Start again</button></div></div>`;
+  } else if (DU.cur) {
+    const c = DU.cur;
+    body = `<div class="cur"><span class="note" style="margin:0">Step ${DU.hist.length + 1}: on now</span>
+      <b>${c.label}</b><span>${c.h} v ${c.a} · ${fmtShort(Date.parse(c.d))}${c.d.length>10?" · "+c.d.slice(11,16):""}</span>
+      <span class="num">£${c.stake.toFixed(2)} @ ${frac(c.odds)} → £${(c.stake * c.odds).toFixed(2)}</span>
+      <span class="note" style="margin:0">It settles itself when the result comes in, or mark it now.</span>
+      <div class="btns"><button type="button" id="du-won">Won</button><button type="button" id="du-lost">Lost</button><button type="button" id="du-cancel">Pick another</button></div></div>`;
+  } else {
+    const cands = duCands(rows).slice(0, 6);
+    body = `<p class="note" style="margin:0">Step ${DU.hist.length + 1}: stake <b>£${bank.toFixed(2)}</b>. Near-evens bets (${frac(DU_LO)} to ${frac(DU_HI)}) with real bookmaker prices, best value first.</p>` +
+      (cands.length ? `<div>${cands.map((c, i) => { const t = Date.parse(c.r.f.d);
+        return `<div class="pick" role="button" tabindex="0" data-lg="${c.r.lg}" data-h="${c.r.f.h}" data-a="${c.r.f.a}">
+          <span class="rk">${i+1}</span>
+          <span class="m"><span class="pk">${c.label}</span>${c.r.f.h} v ${c.r.f.a}<br><span class="d"><span class="lgtag">${LG_SHORT[c.r.lg]}</span> ${fmtShort(t)}${c.r.f.d.length>10?" · "+c.r.f.d.slice(11,16):""}</span><span class="sb">Model ${pct(c.prob)}% · bookmaker ${pct(1/c.odds)}% · ${frac(c.odds)}</span></span>
+          <button type="button" class="go" data-du="${i}">Bet this</button></div>`; }).join("")}</div>`
+        : `<p class="note">No near-evens prices loaded for the chosen days. Bookmaker odds cover the next few days and refresh before each round.</p>`);
+  }
+  return `<div class="panel top-lg du" id="du">
+    <div><h2 style="margin:0">Double up</h2><span class="note">Roll one stake through near-evens bets until you reach your target. One loss ends the run.</span></div>
+    <div class="bb"><div class="row">Start £<input id="du-start" type="number" inputmode="decimal" min="1" value="${DU.start}"${DU.hist.length||DU.cur?" disabled":""}> <span style="margin-left:8px">Target £</span><input id="du-target" type="number" inputmode="numeric" min="2" value="${DU.target}"${DU.hist.length||DU.cur?" disabled":""}></div></div>
+    <div class="steps">${steps}</div>
+    ${body}${hist}
+    ${(DU.hist.length || DU.cur) && !over ? `<div class="row"><button type="button" id="du-reset" class="go">Reset run</button></div>` : ""}
+  </div>`;
+}
+function wireDU(rows){
+  const re = () => { duSave(); renderBB(); $("du").scrollIntoView({ block: "nearest" }); };
+  const num = (id, key) => { const el = $(id); if (el) el.onchange = e => { const v = parseFloat(e.target.value); if (v > 0) DU[key] = v; re(); }; };
+  num("du-start", "start"); num("du-target", "target");
+  if ($("du-reset")) $("du-reset").onclick = e => { e.stopPropagation(); if (DU.hist.length && !duOver() && !confirm("Reset this run?")) return; DU.hist = []; DU.cur = null; re(); };
+  if ($("du-won")) $("du-won").onclick = () => { DU.hist.push({ ...DU.cur, res: "won" }); DU.cur = null; re(); };
+  if ($("du-lost")) $("du-lost").onclick = () => { DU.hist.push({ ...DU.cur, res: "lost" }); DU.cur = null; re(); };
+  if ($("du-cancel")) $("du-cancel").onclick = () => { DU.cur = null; re(); };
+  const cands = duCands(rows).slice(0, 6);
+  $("du").querySelectorAll("[data-du]").forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const c = cands[+b.dataset.du];
+    DU.cur = { lg: c.r.lg, d: c.r.f.d, h: c.r.f.h, a: c.r.f.a, type: c.type, side: c.side, label: c.label, odds: c.odds, stake: duBank() };
+    re();
+  });
+}
 function renderBB(){
   const rows = weekRows().filter(r => Date.parse(r.f.d.length > 10 ? r.f.d : r.f.d + "T15:00") > Date.now()); // not kicked off yet
   const dayLab = d => new Date(d+"T12:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric"});
@@ -733,8 +826,10 @@ function renderBB(){
   chipRow("bb-times", BB_TIMES, [...new Set(rows.filter(onDay).map(kt).filter(Boolean))].sort(), k=>k, "All times", renderBB);
   const use = rows.filter(r => onDay(r) && (!BB_TIMES.size || BB_TIMES.has(kt(r))));
   $("bbout").innerHTML = renderBuilder(use);
+  $("duout").innerHTML = renderDU(use);
+  wireDU(use);
   wireBuilder();
-  $("bbout").querySelectorAll(".pick").forEach(row=>{
+  $("bbview").querySelectorAll(".pick").forEach(row=>{
     const go = ()=>{ setLeague(row.dataset.lg); ensureOption(row.dataset.h); ensureOption(row.dataset.a); $("home").value=row.dataset.h; $("away").value=row.dataset.a; render(); $("pick-h").scrollIntoView({behavior:"smooth"}); };
     row.addEventListener("click", go);
     row.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } });
