@@ -1,4 +1,4 @@
-Last run: 2026-10-19 14:08 UK time
+Last run: 2026-10-19 23:19 UK time
 Results (season 2627)
   E0: 0 new results, latest 2026-10-12
   E1: 0 new results, latest 2026-10-14
@@ -19,7 +19,6 @@ Europe (Champions League tab)
   N1: 0 new, 990 stored, latest 2026-10-11
   P1: 0 new, 989 stored, latest 2026-10-12
   B1: 0 new, 1007 stored, latest 2026-10-11
-  SC0 2627: skipped (TimeoutError: The read operation timed out)
   SC0: 0 new, 732 stored, latest 2026-10-11
   T1: 0 new, 1091 stored, latest 2026-10-12
   G1: 0 new, 751 stored, latest 2026-10-12
@@ -33,5 +32,5 @@ Europe (Champions League tab)
   CL 2026: 144 matches (36 played)
 Champions League: 108 upcoming matches predicted (fitted on 414 past CL games)
 Track record
-saved predictions for 72 upcoming matches (174 in the record)
+saved predictions for 76 upcoming matches (179 in the record)
 Built index.html (686 KB)
