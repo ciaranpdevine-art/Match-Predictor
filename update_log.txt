@@ -1,11 +1,11 @@
-Last run: 2026-10-19 01:13 UK time
+Last run: 2026-10-19 14:08 UK time
 Results (season 2627)
   E0: 0 new results, latest 2026-10-12
   E1: 0 new results, latest 2026-10-14
   E2: 0 new results, latest 2026-10-10
   E3: 0 new results, latest 2026-10-10
 Fixtures
-  E0: 315 fixtures still to play
+  E0: 311 fixtures still to play
   E1: 421 fixtures still to play
   E2: 438 fixtures still to play
   E3: 426 fixtures still to play
@@ -19,9 +19,9 @@ Europe (Champions League tab)
   N1: 0 new, 990 stored, latest 2026-10-11
   P1: 0 new, 989 stored, latest 2026-10-12
   B1: 0 new, 1007 stored, latest 2026-10-11
+  SC0 2627: skipped (TimeoutError: The read operation timed out)
   SC0: 0 new, 732 stored, latest 2026-10-11
   T1: 0 new, 1091 stored, latest 2026-10-12
-  G1 2627: skipped (TimeoutError: The read operation timed out)
   G1: 0 new, 751 stored, latest 2026-10-12
   AUT: 627 stored, latest 2026-10-11
   SWZ: 746 stored, latest 2026-10-11
