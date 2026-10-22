@@ -1,9 +1,9 @@
-Last run: 2026-10-21 22:39 UK time
+Last run: 2026-10-22 01:40 UK time
 Results (season 2627)
   E0: 0 new results, latest 2026-10-19
-  E1: 1 new results, latest 2026-10-20
-  E2: 12 new results, latest 2026-10-21
-  E3: 12 new results, latest 2026-10-20
+  E1: 0 new results, latest 2026-10-20
+  E2: 0 new results, latest 2026-10-21
+  E3: 0 new results, latest 2026-10-20
 Fixtures
   E0: 310 fixtures still to play
   E1: 420 fixtures still to play
@@ -12,7 +12,7 @@ Fixtures
 Odds
   odds for 25 upcoming matches
 Europe (Champions League tab)
-  SP1: 1 new, 1229 stored, latest 2026-10-21
+  SP1: 0 new, 1229 stored, latest 2026-10-21
   D1: 0 new, 972 stored, latest 2026-10-18
   I1: 0 new, 1210 stored, latest 2026-10-19
   F1: 0 new, 981 stored, latest 2026-10-18
