@@ -402,7 +402,8 @@ function buildFor(lg){
 }
 function build(){ ({ matches, fixtures } = buildFor(LG)); }
 
-const TOP_N = 3, TOP_DAYS = 7;
+const TOP_DAYS = 7;
+let TOP_N = Math.max(1, Math.min(30, Math.round(+LS0("lgN")) || 3));
 let TOP_LG = LS0("topLg") || "E0";
 let TOP_METRIC = ["O15","pOver","O35","pBtts","W","WB","WO","MIX"].includes(LS0("topMetric")) ? LS0("topMetric") : "pOver";
 // compare the other market with the one being ranked: green ▲ if more likely, red ▼ if less
@@ -910,11 +911,19 @@ function renderTop(){
         <input id="bn" type="number" inputmode="numeric" min="1" max="30" value="${BEST_N}" aria-label="Number of picks">
         <button type="button" id="bn-up" aria-label="Show more">+</button><span>picks</span></div>
       <div>${best.length ? best.map((r,i)=>pickRow(r,i,true)).join("") : `<p class="note">No matches on the chosen days and times.</p>`}</div>
-    </div><h3 class="sub" style="margin:18px 0 6px">Top ${TOP_N} by league</h3>` + lgChips + cards;
+    </div><h3 class="sub" style="margin:18px 0 6px">Top ${TOP_N} by league</h3>
+      <div class="stepper" role="group" aria-label="How many picks per league" style="margin-bottom:8px"><span>Show</span>
+        <button type="button" id="ln-down" aria-label="Show fewer">−</button>
+        <input id="ln" type="number" inputmode="numeric" min="1" max="30" value="${TOP_N}" aria-label="Picks per league">
+        <button type="button" id="ln-up" aria-label="Show more">+</button><span>per league</span></div>` + lgChips + cards;
   const setN = n => { BEST_N = clampN(n); LS.set("bestN", BEST_N); renderTop(); };
   $("bn-down").onclick = () => setN(BEST_N - 1);
   $("bn-up").onclick = () => setN(BEST_N + 1);
   $("bn").onchange = e => setN(e.target.value);
+  const setLN = n => { TOP_N = Math.max(1, Math.min(30, Math.round(+n) || 3)); LS.set("lgN", TOP_N); renderTop(); };
+  $("ln-down").onclick = () => setLN(TOP_N - 1);
+  $("ln-up").onclick = () => setLN(TOP_N + 1);
+  $("ln").onchange = e => setLN(e.target.value);
   $("top-lgs").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ TOP_LG = b.dataset.lg; LS.set("topLg", TOP_LG); renderTop(); }));
   $("top-metric").value = TOP_METRIC;
   $("top-note").textContent = `Matches most likely to ${M.desc}, over the next ${TOP_DAYS} days. Pick days and kick-off times to narrow it down. Tap a match to open its full prediction.`;
