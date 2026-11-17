@@ -1,4 +1,4 @@
-Last run: 2026-11-17 01:51 UK time
+Last run: 2026-11-17 15:59 UK time
 Results (season 2627)
   E0: 0 new results, latest 2026-11-08
   E1: 0 new results, latest 2026-11-07
@@ -19,6 +19,7 @@ Europe (Champions League tab)
   N1: 0 new, 1026 stored, latest 2026-11-08
   P1: 0 new, 1016 stored, latest 2026-11-08
   B1: 0 new, 1035 stored, latest 2026-11-08
+  SC0 2627: skipped (TimeoutError: The read operation timed out)
   SC0: 0 new, 759 stored, latest 2026-11-08
   T1: 0 new, 1127 stored, latest 2026-11-08
   G1: 0 new, 778 stored, latest 2026-11-08
