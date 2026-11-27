@@ -1,4 +1,4 @@
-Last run: 2026-11-27 01:42 UK time
+Last run: 2026-11-27 16:35 UK time
 Results (season 2627)
   E0: 0 new results, latest 2026-11-23
   E1: 0 new results, latest 2026-11-25
@@ -10,7 +10,7 @@ Fixtures
   E2: 373 fixtures still to play
   E3: 364 fixtures still to play
 Odds
-  odds for 19 upcoming matches
+  odds for 46 upcoming matches
 Europe (Champions League tab)
   SP1: 0 new, 1269 stored, latest 2026-11-23
   D1: 0 new, 1008 stored, latest 2026-11-22
@@ -32,5 +32,5 @@ Europe (Champions League tab)
   CL 2026: 144 matches (90 played)
 Champions League: 54 upcoming matches predicted (fitted on 468 past CL games)
 Track record
-saved predictions for 79 upcoming matches (432 in the record)
-Built index.html (715 KB)
+saved predictions for 97 upcoming matches (450 in the record)
+Built index.html (719 KB)
